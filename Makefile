@@ -61,6 +61,11 @@ link: check
 	fi
 	@ln -sfn "$(PROJECT_DIR)" "$(TARGET_DIR)"
 	@echo "--> Symlink created: $(TARGET_DIR) -> $(PROJECT_DIR)"
+	@mkdir -p "$(HOME)/.local/bin"
+	@ln -sf "$(PROJECT_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab-client"
+	@ln -sf "$(PROJECT_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab"
+	@ln -sf "$(PROJECT_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/hyprswitch-client"
+	@ln -sf "$(PROJECT_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/hyprswitch"
 	@if command -v omarchy >/dev/null 2>&1; then \
 		echo "--> Ensuring plugin is enabled..."; \
 		omarchy plugin enable "$(PLUGIN_ID)" >/dev/null 2>&1 || true; \
@@ -88,6 +93,11 @@ install: check
 		cp -r AltTabOverlay.qml components hypr js manifest.json LICENSE README.md "$(TARGET_DIR)/"; \
 	fi
 	@chmod +x "$(TARGET_DIR)/hypr/omalt-tab-client"
+	@mkdir -p "$(HOME)/.local/bin"
+	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab-client"
+	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab"
+	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/hyprswitch-client"
+	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/hyprswitch"
 	@if command -v omarchy >/dev/null 2>&1; then \
 		echo "--> Enabling plugin..."; \
 		omarchy plugin enable "$(PLUGIN_ID)" >/dev/null 2>&1 || true; \
@@ -112,6 +122,7 @@ uninstall:
 	fi
 	@echo "--> Removing $(TARGET_DIR)..."
 	@rm -rf "$(TARGET_DIR)"
+	@rm -f "$(HOME)/.local/bin/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab"
 	@$(MAKE) restart
 	@echo "✓ omalt-tab uninstalled."
 
@@ -123,7 +134,11 @@ restart:
 	elif command -v omarchy-shell >/dev/null 2>&1; then \
 		omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true; \
 	fi
-	@echo "✓ Shell reloaded."
+	@echo "--> Reloading Hyprland bindings..."
+	@if command -v hyprctl >/dev/null 2>&1; then \
+		hyprctl reload >/dev/null 2>&1 || true; \
+	fi
+	@echo "✓ Shell and Hyprland reloaded."
 
 status:
 	@echo "=== omalt-tab Status ==="

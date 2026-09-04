@@ -109,7 +109,7 @@ Rectangle {
                     text: root.windows.length === 0 ? "empty" : (root.windows.length + " win")
                     color: root.windows.length === 0 ? Color.muted : Color.foreground
                     font.family: Style.font.menuFamily
-                    font.pixelSize: Style.font.small
+                    font.pixelSize: Style.font.caption
                 }
             }
 

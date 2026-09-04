@@ -150,7 +150,7 @@ Rectangle {
             text: root.winData ? (root.winData.title || root.winData.clientClass) : ""
             color: root.isSelected ? Color.foreground : Color.muted
             font.family: Style.font.menuFamily
-            font.pixelSize: Style.font.small
+            font.pixelSize: Style.font.caption
             font.weight: root.isSelected ? Font.Bold : Font.Normal
             elide: Text.ElideRight
             horizontalAlignment: Text.AlignHCenter

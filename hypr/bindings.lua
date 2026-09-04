@@ -21,6 +21,7 @@ if test_file then
 else
   local home = os.getenv("HOME")
   for _, candidate in ipairs({
+    home .. "/.local/bin/omalt-tab-client",
     home .. "/.config/omarchy/plugins/io.github.codesmith28.omalt-tab/hypr/omalt-tab-client",
     home .. "/Projects/omalt-tab/hypr/omalt-tab-client"
   }) do
@@ -59,9 +60,15 @@ end
 local function start_release_watcher()
   stop_release_watcher()
   is_switching = true
+  local checks = 0
   release_timer = hl.timer(function()
     if not is_switching or hl.get_current_submap() ~= "omalt-tab" then
       stop_release_watcher()
+      return
+    end
+    checks = checks + 1
+    -- Grace period (~80ms) before polling key state to avoid race condition on initial Alt+Tab press
+    if checks < 4 then
       return
     end
     local alt_l = hl.is_key_down("Alt_L")
@@ -69,7 +76,7 @@ local function start_release_watcher()
     if not alt_l and not alt_r then
       commit_and_reset()
     end
-  end, { timeout = 10, type = "repeat" })
+  end, { timeout = 25, type = "repeat" })
 end
 
 -- Define omalt-tab submap for robust modal switching
