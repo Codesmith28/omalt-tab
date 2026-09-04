@@ -6,14 +6,14 @@ var DEFAULT_HOME_ROW_LETTERS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"
 
 /**
  * Parses raw JSON snapshot from Hyprland into structured workspaces and MRU windows.
- * Dynamically filters out unneeded empty workspaces so the switcher only occupies
- * the space that is actually needed.
+ * Dynamically includes populated workspaces and any empty workspaces in between them,
+ * allowing users to switch directly to empty workspaces.
  * @param {Object} data - Raw JSON with { clients, workspaces, monitors }
  * @param {Array<string>} wsLetters - Home row workspace letters array
- * @returns {Object} { workspaces: Array, mruList: Array }
+ * @returns {Object} { workspaces: Array, mruList: Array, monitorAspect: number }
  */
 function parseSnapshot(data, wsLetters) {
-    if (!data) return { workspaces: [], mruList: [] };
+    if (!data) return { workspaces: [], mruList: [], monitorAspect: 16 / 10 };
 
     var clients = data.clients || [];
     var workspaces = data.workspaces || [];
@@ -27,6 +27,10 @@ function parseSnapshot(data, wsLetters) {
         monitorMap[monObj.name] = monObj;
         monitorMap[monObj.id] = monObj;
     }
+
+    var monWidth = primaryMonitor.width || 1920;
+    var monHeight = primaryMonitor.height || 1200;
+    var monitorAspect = (monHeight > 0) ? (monWidth / monHeight) : (16 / 10);
 
     // Filter valid interactive windows
     var validClients = clients.filter(function(c) {
@@ -47,51 +51,82 @@ function parseSnapshot(data, wsLetters) {
         wsClientsMap[wsId].push(c);
     }
 
+    // Existing workspace objects indexed by ID
+    var wsObjectMap = {};
+    for (var w = 0; w < workspaces.length; w++) {
+        wsObjectMap[workspaces[w].id] = workspaces[w];
+    }
+
     // Identify active workspace ID
     var activeWsId = (primaryMonitor.activeWorkspace && primaryMonitor.activeWorkspace.id > 0)
         ? primaryMonitor.activeWorkspace.id
         : -1;
 
-    // Dynamically select workspaces that occupy actual content:
-    // Workspaces with active windows, OR the currently active workspace
-    var visibleWorkspacesMap = {};
-    var visibleWorkspaces = [];
-
-    for (var w = 0; w < workspaces.length; w++) {
-        var ws = workspaces[w];
-        var wid = ws.id;
-        var winCount = (wsClientsMap[wid] && wsClientsMap[wid].length) || 0;
-        var isActive = (wid === activeWsId);
-
-        if (winCount > 0 || isActive) {
-            visibleWorkspacesMap[wid] = true;
-            visibleWorkspaces.push(ws);
-        }
-    }
-
-    // Also include any workspace from clients not present in workspaces array
+    // Collect all workspace IDs that have windows, are active, or exist in Hyprland
+    var populatedIds = [];
     for (var cWsId in wsClientsMap) {
         var idNum = parseInt(cWsId);
-        if (!visibleWorkspacesMap[idNum]) {
-            visibleWorkspacesMap[idNum] = true;
-            visibleWorkspaces.push({ id: idNum, name: "" + idNum });
+        if (idNum > 0 && populatedIds.indexOf(idNum) === -1) {
+            populatedIds.push(idNum);
+        }
+    }
+    for (var w = 0; w < workspaces.length; w++) {
+        var wid = workspaces[w].id;
+        var winCount = (wsClientsMap[wid] && wsClientsMap[wid].length) || 0;
+        if (wid > 0 && (winCount > 0 || wid === activeWsId || (workspaces[w].windows && workspaces[w].windows > 0))) {
+            if (populatedIds.indexOf(wid) === -1) {
+                populatedIds.push(wid);
+            }
+        }
+    }
+    if (activeWsId > 0 && populatedIds.indexOf(activeWsId) === -1) {
+        populatedIds.push(activeWsId);
+    }
+
+    if (populatedIds.length === 0) {
+        populatedIds.push(activeWsId > 0 ? activeWsId : 1);
+    }
+
+    var minId = Math.min.apply(null, populatedIds);
+    var maxId = Math.max.apply(null, populatedIds);
+
+    // Build the complete list of workspaces from minId to maxId,
+    // including any empty workspaces in between
+    var visibleWorkspaces = [];
+    for (var id = minId; id <= maxId; id++) {
+        var existing = wsObjectMap[id];
+        if (existing) {
+            visibleWorkspaces.push(existing);
+        } else {
+            visibleWorkspaces.push({
+                id: id,
+                name: "" + id,
+                monitor: primaryMonitor.name || "",
+                monitorID: primaryMonitor.id || 0,
+                windows: 0
+            });
         }
     }
 
-    // Sort visible workspaces ascending by ID
+    // Sort ascending by ID
     visibleWorkspaces.sort(function(a, b) { return a.id - b.id; });
 
     var processedWorkspaces = [];
     var vpWidth = 280;
-    var vpHeight = 175;
+    var vpHeight = Math.round(vpWidth / monitorAspect);
 
     for (var wIdx = 0; wIdx < visibleWorkspaces.length; wIdx++) {
         var curWs = visibleWorkspaces[wIdx];
         var curWid = curWs.id;
 
         var wsMon = monitorMap[curWs.monitor] || monitorMap[curWs.monitorID] || primaryMonitor;
-        var scaleX = vpWidth / (wsMon.width || 1920);
-        var scaleY = vpHeight / (wsMon.height || 1200);
+        var curMonW = wsMon.width || monWidth;
+        var curMonH = wsMon.height || monHeight;
+        var curMonX = wsMon.x || 0;
+        var curMonY = wsMon.y || 0;
+
+        var scaleX = vpWidth / curMonW;
+        var scaleY = vpHeight / curMonH;
 
         // Letter assignment from home row keys: "asdfghjkl;" (1 -> a, 2 -> s...)
         var letter = (curWid >= 1 && curWid <= letters.length)
@@ -113,8 +148,13 @@ function parseSnapshot(data, wsLetters) {
             var win = wsWindows[k];
             var num = k + 1; // 1-based index
 
-            var rx = Math.max(0, (win.at[0] - (wsMon.x || 0)) * scaleX);
-            var ry = Math.max(0, (win.at[1] - (wsMon.y || 0)) * scaleY);
+            var normX = Math.max(0, Math.min(1, (win.at[0] - curMonX) / curMonW));
+            var normY = Math.max(0, Math.min(1, (win.at[1] - curMonY) / curMonH));
+            var normW = Math.max(0.05, Math.min(1 - normX, win.size[0] / curMonW));
+            var normH = Math.max(0.05, Math.min(1 - normY, win.size[1] / curMonH));
+
+            var rx = Math.max(0, (win.at[0] - curMonX) * scaleX);
+            var ry = Math.max(0, (win.at[1] - curMonY) * scaleY);
             var rw = Math.max(65, Math.min(vpWidth - rx, win.size[0] * scaleX));
             var rh = Math.max(48, Math.min(vpHeight - ry, win.size[1] * scaleY));
 
@@ -128,6 +168,10 @@ function parseSnapshot(data, wsLetters) {
                 wsIndex: num,
                 focusHistoryID: win.focusHistoryID,
                 floating: win.floating,
+                normX: normX,
+                normY: normY,
+                normW: normW,
+                normH: normH,
                 rx: rx,
                 ry: ry,
                 rw: rw,
@@ -141,6 +185,7 @@ function parseSnapshot(data, wsLetters) {
             letter: letter.toUpperCase(),
             letterLower: letter.toLowerCase(),
             isActive: (curWid === activeWsId),
+            isEmpty: (processedWindows.length === 0),
             windows: processedWindows
         });
     }
@@ -151,7 +196,8 @@ function parseSnapshot(data, wsLetters) {
 
     return {
         workspaces: processedWorkspaces,
-        mruList: flatMru
+        mruList: flatMru,
+        monitorAspect: monitorAspect
     };
 }
 
@@ -159,13 +205,15 @@ function parseSnapshot(data, wsLetters) {
  * Finds client display details by window address across all workspaces.
  */
 function findClientData(workspacesData, address, fallbackClient) {
-    if (!workspacesData || !address) return null;
+    if (!workspacesData) return null;
 
-    for (var i = 0; i < workspacesData.length; i++) {
-        var ws = workspacesData[i];
-        for (var j = 0; j < ws.windows.length; j++) {
-            if (ws.windows[j].address === address) {
-                return ws.windows[j];
+    if (address) {
+        for (var i = 0; i < workspacesData.length; i++) {
+            var ws = workspacesData[i];
+            for (var j = 0; j < ws.windows.length; j++) {
+                if (ws.windows[j].address === address) {
+                    return ws.windows[j];
+                }
             }
         }
     }
@@ -177,7 +225,8 @@ function findClientData(workspacesData, address, fallbackClient) {
             clientClass: fallbackClient.class || "window",
             initialClass: fallbackClient.initialClass || "",
             wsLetter: "A",
-            wsIndex: 1
+            wsIndex: 1,
+            workspaceId: fallbackClient.workspace ? fallbackClient.workspace.id : 1
         };
     }
     return null;

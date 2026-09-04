@@ -21,7 +21,9 @@ Item {
     property var mruList: []
     property int selectedIndex: 0
     property string selectedAddress: ""
+    property int selectedWorkspaceId: -1
     property var selectedClientData: null
+    property real monitorAspect: 16 / 10
 
     // Pending navigation offset while snapshot is loading
     property int pendingOffset: 1
@@ -189,6 +191,7 @@ Item {
         root.pendingCommit = false;
         root.pendingOffset = offset;
         root.isOpening = true;
+        root.selectedWorkspaceId = -1;
         if (root.mruList && root.mruList.length > 0) {
             // Cache is warm: display immediately
             root.isOpening = false;
@@ -213,11 +216,22 @@ Item {
         var flatMru = res.mruList;
         root.workspacesData = res.workspaces;
         root.mruList = flatMru;
+        if (res.monitorAspect) {
+            root.monitorAspect = res.monitorAspect;
+        }
 
         if (flatMru.length === 0) {
+            if (root.workspacesData && root.workspacesData.length > 0) {
+                root.selectedIndex = -1;
+                root.selectedAddress = "";
+                root.selectWorkspace(root.workspacesData[0].id);
+                root.opened = true;
+                return;
+            }
             root.selectedIndex = -1;
             root.selectedAddress = "";
             root.selectedClientData = null;
+            root.selectedWorkspaceId = -1;
             root.opened = false;
             return;
         }
@@ -255,6 +269,9 @@ Item {
         var client = root.mruList[root.selectedIndex];
         root.selectedAddress = client.address;
         root.selectedClientData = WindowModel.findClientData(root.workspacesData, client.address, client);
+        if (root.selectedClientData && root.selectedClientData.workspaceId) {
+            root.selectedWorkspaceId = root.selectedClientData.workspaceId;
+        }
     }
 
     function cycle(delta) {
@@ -266,18 +283,56 @@ Item {
     function jumpWorkspace(letter) {
         var jump = Navigation.findWorkspaceJump(root.workspacesData, letter);
         if (!jump) return;
-        if (jump.empty) {
-            focusDispatcher.switchWorkspace(jump.wsId);
-            root.cancel();
-        } else if (jump.address) {
+        if (jump.empty || !jump.address) {
+            root.selectWorkspace(jump.wsId);
+        } else {
             root.selectAddress(jump.address);
         }
     }
 
     function jumpWindow(number) {
-        if (!root.selectedClientData) return;
-        var addr = Navigation.findWindowJump(root.workspacesData, root.selectedClientData.workspaceId, number);
+        var currentWsId = root.selectedWorkspaceId;
+        if (!currentWsId && root.selectedClientData) currentWsId = root.selectedClientData.workspaceId;
+        if (!currentWsId) return;
+        var addr = Navigation.findWindowJump(root.workspacesData, currentWsId, number);
         if (addr) root.selectAddress(addr);
+    }
+
+    function selectWorkspace(wsId) {
+        root.selectedWorkspaceId = wsId;
+        root.selectedAddress = "";
+        root.selectedIndex = -1;
+
+        var wsData = null;
+        var wsIdx = -1;
+        for (var i = 0; i < root.workspacesData.length; i++) {
+            if (root.workspacesData[i].id === wsId) {
+                wsData = root.workspacesData[i];
+                wsIdx = i;
+                break;
+            }
+        }
+
+        if (wsData) {
+            root.selectedClientData = {
+                isWorkspace: true,
+                isEmpty: (!wsData.windows || wsData.windows.length === 0),
+                workspaceId: wsData.id,
+                wsLetter: wsData.letter,
+                title: "Workspace " + wsData.name + (wsData.windows && wsData.windows.length > 0 ? "" : " (Empty)"),
+                clientClass: "workspace"
+            };
+            root.ensureWorkspaceVisible(wsIdx);
+        } else {
+            root.selectedClientData = {
+                isWorkspace: true,
+                isEmpty: true,
+                workspaceId: wsId,
+                wsLetter: "",
+                title: "Workspace " + wsId + " (Empty)",
+                clientClass: "workspace"
+            };
+        }
     }
 
     function selectAddress(address) {
@@ -290,6 +345,7 @@ Item {
                     var ws = root.workspacesData[w];
                     for (var k = 0; k < ws.windows.length; k++) {
                         if (ws.windows[k].address === address) {
+                            root.selectedWorkspaceId = ws.id;
                             root.ensureWorkspaceVisible(w);
                             return;
                         }
@@ -301,20 +357,24 @@ Item {
     }
 
     function navigateDirection(dir) {
-        var target = Navigation.findSpatialTarget(root.workspacesData, root.selectedAddress, dir);
+        var target = Navigation.findSpatialTarget(root.workspacesData, root.selectedAddress, root.selectedWorkspaceId, dir);
         if (target) {
-            root.selectAddress(target);
+            if (target.isWorkspace || !target.address) {
+                root.selectWorkspace(target.wsId);
+            } else {
+                root.selectAddress(target.address);
+            }
         }
     }
 
     function ensureWorkspaceVisible(wsIdx) {
         if (wsIdx < 0 || !wsFlickable || wsFlickable.width <= 0) return;
-        var cardX = wsIdx * (296 + 14);
-        var cardWidth = 296;
+        var cardW = container.dynamicCardWidth;
+        var cardX = wsIdx * (cardW + 14);
         if (cardX < wsFlickable.contentX) {
             wsFlickable.contentX = Math.max(0, cardX - 14);
-        } else if (cardX + cardWidth > wsFlickable.contentX + wsFlickable.width) {
-            wsFlickable.contentX = Math.min(wsFlickable.contentWidth - wsFlickable.width, cardX + cardWidth - wsFlickable.width + 14);
+        } else if (cardX + cardW > wsFlickable.contentX + wsFlickable.width) {
+            wsFlickable.contentX = Math.min(wsFlickable.contentWidth - wsFlickable.width, cardX + cardW - wsFlickable.width + 14);
         }
     }
 
@@ -349,6 +409,9 @@ Item {
                         root.mruList.unshift(item);
                     }
                 }
+                refreshTimer.restart();
+            } else if (root.selectedWorkspaceId > 0) {
+                focusDispatcher.switchWorkspace(root.selectedWorkspaceId);
                 refreshTimer.restart();
             }
         } else if (snapshotFetcher.running) {
@@ -419,11 +482,17 @@ Item {
                 } else if (event.key === Qt.Key_Backtab) {
                     root.cycle(-1);
                     event.accepted = true;
-                } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Up) {
-                    root.cycle(-1);
+                } else if (event.key === Qt.Key_Left) {
+                    root.navigateDirection("left");
                     event.accepted = true;
-                } else if (event.key === Qt.Key_Right || event.key === Qt.Key_Down) {
-                    root.cycle(1);
+                } else if (event.key === Qt.Key_Right) {
+                    root.navigateDirection("right");
+                    event.accepted = true;
+                } else if (event.key === Qt.Key_Up) {
+                    root.navigateDirection("up");
+                    event.accepted = true;
+                } else if (event.key === Qt.Key_Down) {
+                    root.navigateDirection("down");
                     event.accepted = true;
                 } else if (event.key === Qt.Key_Home) {
                     if (root.mruList.length > 0) {
@@ -483,13 +552,33 @@ Item {
             anchors.centerIn: parent
 
             // Dynamic Sizing: adapts to number of workspace cards and screen bounds
-            readonly property int minWidth: Math.max(headerBar.implicitWidth, footerBar.implicitWidth, 560)
-            readonly property int maxAllowedWidth: Math.max(win.width - 80, 400)
-            readonly property int naturalContentWidth: Math.max(wsRow.implicitWidth, minWidth)
+            readonly property int count: Math.max(1, root.workspacesData.length)
+            readonly property int maxAllowedWidth: Math.max(win.width - 80, 360)
+            readonly property int maxAllowedHeight: Math.max(win.height - 80, 300)
+
+            // Dynamic card width: scales so that workspaces fit smoothly without overflow
+            readonly property int dynamicCardWidth: {
+                var maxAvail = Math.max(340, win.width - 120);
+                var fitWidth = Math.floor((maxAvail - (count - 1) * 14) / count);
+                var maxW = (count === 1) ? 320 : ((count === 2) ? 300 : 285);
+                var minW = 185;
+                return Math.max(minW, Math.min(maxW, fitWidth));
+            }
+
+            // Viewport and Card height derived from monitor aspect ratio
+            readonly property real monitorAspect: root.monitorAspect > 0.5 ? root.monitorAspect : (16 / 10)
+            readonly property int dynamicVpWidth: dynamicCardWidth - 16
+            readonly property int dynamicVpHeight: Math.round(dynamicVpWidth / monitorAspect)
+            readonly property int dynamicCardHeight: dynamicVpHeight + 48
+
+            // Row and content width
+            readonly property int wsRowWidth: count * dynamicCardWidth + (count - 1) * 14
+            readonly property int minWidth: Math.max(headerBar.implicitWidth, footerBar.implicitWidth, dynamicCardWidth)
+            readonly property int naturalContentWidth: Math.max(wsRowWidth, minWidth)
             readonly property int contentWidth: Math.min(naturalContentWidth, maxAllowedWidth)
 
             width: contentWidth + 48
-            height: contentCol.implicitHeight + 40
+            height: Math.min(contentCol.implicitHeight + 40, maxAllowedHeight)
             radius: 16
             color: "#181825"
             border.width: 1.5
@@ -520,9 +609,6 @@ Item {
                 width: container.contentWidth
                 spacing: 16
 
-                implicitWidth: container.contentWidth
-                implicitHeight: headerBar.implicitHeight + spacing + wsFlickable.implicitHeight + spacing + footerBar.implicitHeight
-
                 HeaderBar {
                     id: headerBar
                     width: parent.width
@@ -532,17 +618,15 @@ Item {
                 Flickable {
                     id: wsFlickable
                     width: parent.width
-                    height: 236
-                    implicitWidth: parent.width
-                    implicitHeight: 236
-                    contentWidth: wsRow.implicitWidth
-                    contentHeight: 236
+                    height: container.dynamicCardHeight + 8
+                    contentWidth: container.wsRowWidth
+                    contentHeight: height
                     boundsBehavior: Flickable.StopAtBounds
                     clip: true
 
                     Item {
-                        width: Math.max(wsFlickable.width, wsRow.implicitWidth)
-                        height: 236
+                        width: Math.max(wsFlickable.width, container.wsRowWidth)
+                        height: parent.height
 
                         Row {
                             id: wsRow
@@ -555,6 +639,9 @@ Item {
                                 WorkspaceCard {
                                     wsData: modelData
                                     selectedAddress: root.selectedAddress
+                                    selectedWorkspaceId: root.selectedWorkspaceId
+                                    cardWidth: container.dynamicCardWidth
+                                    cardHeight: container.dynamicCardHeight
                                     onWindowClicked: addr => {
                                         root.selectAddress(addr);
                                         root.commit();

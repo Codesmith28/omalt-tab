@@ -10,10 +10,10 @@ Rectangle {
 
     readonly property bool isSelected: winData && winData.address && winData.address === selectedAddress
 
-    x: winData ? winData.rx : 0
-    y: winData ? winData.ry : 0
-    width: winData ? Math.max(winData.rw, 60) : 60
-    height: winData ? Math.max(winData.rh, 45) : 45
+    x: winData ? Math.max(0, Math.round((winData.normX !== undefined ? winData.normX : (winData.rx / 280)) * parent.width)) : 0
+    y: winData ? Math.max(0, Math.round((winData.normY !== undefined ? winData.normY : (winData.ry / 175)) * parent.height)) : 0
+    width: winData ? Math.max(45, Math.min(parent.width - x, Math.round((winData.normW !== undefined ? winData.normW : (winData.rw / 280)) * parent.width))) : 45
+    height: winData ? Math.max(35, Math.min(parent.height - y, Math.round((winData.normH !== undefined ? winData.normH : (winData.rh / 175)) * parent.height))) : 35
 
     radius: 8
     color: isSelected ? "#2a2d48" : (mouseArea.containsMouse ? "#222436" : "#1a1b26")
@@ -24,6 +24,10 @@ Rectangle {
 
     Behavior on color { ColorAnimation { duration: 100 } }
     Behavior on border.color { ColorAnimation { duration: 100 } }
+    Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+    Behavior on y { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+    Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+    Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
     // Outer glow when selected
     Rectangle {
@@ -44,9 +48,9 @@ Rectangle {
         z: 5
         anchors.top: parent.top
         anchors.left: parent.left
-        anchors.margins: 4
-        width: 20
-        height: 20
+        anchors.margins: 3
+        width: Math.min(20, Math.max(16, Math.round(root.width / 4)))
+        height: width
         radius: 4
         color: root.isSelected ? "#7aa2f7" : "#16161e"
         border.width: 1
@@ -56,7 +60,7 @@ Rectangle {
             anchors.centerIn: parent
             text: root.winData ? root.winData.wsIndex : "1"
             color: root.isSelected ? "#11111b" : "#06b6d4"
-            font.pixelSize: 11
+            font.pixelSize: Math.max(9, parent.height - 7)
             font.bold: true
             font.family: "monospace"
         }
@@ -65,8 +69,8 @@ Rectangle {
     // Center Content: App Icon
     Item {
         anchors.centerIn: parent
-        anchors.verticalCenterOffset: root.height > 65 ? -8 : 0
-        width: Math.min(32, Math.min(root.width - 24, root.height - 16))
+        anchors.verticalCenterOffset: (root.height >= 55 && root.width >= 65) ? -6 : 0
+        width: Math.min(30, Math.min(root.width - 16, root.height - 14))
         height: width
 
         Image {
@@ -134,9 +138,9 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        anchors.margins: 4
-        height: 16
-        visible: root.height >= 65 && root.width >= 70
+        anchors.margins: 3
+        height: 14
+        visible: root.height >= 55 && root.width >= 65
 
         Text {
             anchors.fill: parent

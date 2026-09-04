@@ -7,7 +7,7 @@ Rectangle {
     property var selectedClientData: null
 
     implicitHeight: 52
-    implicitWidth: 500
+    implicitWidth: 280
     radius: 10
     color: "#11111b"
     border.width: 1
@@ -27,11 +27,12 @@ Rectangle {
             spacing: 12
 
             Image {
+                id: appIcon
                 anchors.verticalCenter: parent.verticalCenter
                 width: 28
                 height: 28
                 source: {
-                    if (!root.selectedClientData) return "";
+                    if (!root.selectedClientData || root.selectedClientData.isWorkspace) return "";
                     var cls = root.selectedClientData.clientClass || "";
                     var initCls = root.selectedClientData.initialClass || "";
                     var candidates = [
@@ -59,13 +60,47 @@ Rectangle {
                 visible: status === Image.Ready
             }
 
+            Rectangle {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 28
+                height: 28
+                radius: 7
+                color: "#24283b"
+                border.width: 1
+                border.color: "#414868"
+                visible: !appIcon.visible
+
+                Text {
+                    anchors.centerIn: parent
+                    text: {
+                        if (root.selectedClientData && root.selectedClientData.isWorkspace) {
+                            return root.selectedClientData.wsLetter || "WS";
+                        }
+                        if (root.selectedClientData && root.selectedClientData.clientClass) {
+                            return root.selectedClientData.clientClass.substring(0, 1).toUpperCase();
+                        }
+                        return "⇄";
+                    }
+                    color: "#89b4fa"
+                    font.bold: true
+                    font.pixelSize: 13
+                    font.family: "monospace"
+                }
+            }
+
             Column {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 2
                 width: parent.width - 40
 
                 Text {
-                    text: root.selectedClientData ? (root.selectedClientData.title || "Window") : "No window selected"
+                    text: {
+                        if (!root.selectedClientData) return "No selection";
+                        if (root.selectedClientData.isWorkspace) {
+                            return root.selectedClientData.title || ("Workspace " + root.selectedClientData.workspaceId);
+                        }
+                        return root.selectedClientData.title || "Window";
+                    }
                     color: "#cdd6f4"
                     font.pixelSize: 13
                     font.bold: true
@@ -76,10 +111,16 @@ Rectangle {
                 Row {
                     spacing: 8
                     Text {
-                        text: root.selectedClientData ?
-                            ("Workspace [" + (root.selectedClientData.wsLetter || "1") + "]  •  Window #" + (root.selectedClientData.wsIndex || "1") + "  •  " + (root.selectedClientData.clientClass || "")) : ""
+                        text: {
+                            if (!root.selectedClientData) return "";
+                            if (root.selectedClientData.isWorkspace) {
+                                return "Workspace [" + (root.selectedClientData.wsLetter || "") + "]  •  Empty workspace  •  Release Alt to switch";
+                            }
+                            return "Workspace [" + (root.selectedClientData.wsLetter || "1") + "]  •  Window #" + (root.selectedClientData.wsIndex || "1") + "  •  " + (root.selectedClientData.clientClass || "");
+                        }
                         color: "#89b4fa"
                         font.pixelSize: 11
+                        elide: Text.ElideRight
                     }
                 }
             }
@@ -91,7 +132,7 @@ Rectangle {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 12
-            visible: root.width >= 460
+            visible: root.width >= 430
 
             Text {
                 text: "Release Alt to switch"

@@ -6,7 +6,7 @@ Item {
     property string title: "OMALT-TAB"
 
     implicitHeight: 32
-    implicitWidth: Math.max(leftRow.implicitWidth + rightRow.implicitWidth + 24, 480)
+    implicitWidth: Math.max(leftRow.implicitWidth + 20, 240)
 
     // Left: Icon + Title
     Row {
