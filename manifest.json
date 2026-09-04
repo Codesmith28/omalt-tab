@@ -4,7 +4,7 @@
   "name": "omalt-tab",
   "version": "1.0.0",
   "author": "Sarthak Siddhpura",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "description": "Ergonomic Alt+Tab window switcher with home-row workspace navigation and spatial layout for Hyprland and Omarchy.",
   "kinds": [
     "overlay"

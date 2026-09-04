@@ -133,4 +133,4 @@ omarchy plugin remove io.github.codesmith28.omalt-tab
 
 ## License
 
-[MIT](LICENSE) © 2026 Sarthak Siddhpura
+[Apache-2.0](LICENSE) © 2026 Sarthak Siddhpura
