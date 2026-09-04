@@ -8,6 +8,12 @@ Built by **Sarthak Siddhpura**.
 
 ## Features
 
+- **Dynamic Proportional Box Dimensions**:
+  - Automatically sizes and scales cards based on current screen resolution and aspect ratio (16:9, 16:10, ultrawide).
+  - Flexibly accommodates anywhere from 1 to 10 workspaces without clipping or overflow.
+- **Empty Workspace In-Between Navigation**:
+  - Automatically identifies gaps between active workspaces and presents them as empty desktop cards.
+  - You can navigate directly into empty workspaces using spatial keys or their assigned home-row letters (`A`–`;`), then release `Alt` to switch Hyprland directly to that empty workspace.
 - **Race-Condition-Free Switching**:
   - The client list and workspaces are snapshotted **once** when the switcher opens.
   - While cycling (`Alt+Tab`, `Shift+Alt+Tab`, arrows, numbers), the selection index updates purely in RAM. Hyprland focus history is **never mutated** mid-cycle.
@@ -26,7 +32,7 @@ Built by **Sarthak Siddhpura**.
     - **8** &rarr; `K`
     - **9** &rarr; `L`
     - **10** &rarr; `;`
-  - Pressing any home-row key (`A`–`;`) instantly jumps to that workspace and selects its window.
+  - Pressing any home-row key (`A`–`;`) instantly jumps to that workspace and selects its window (or focuses the workspace if empty).
 - **Numbered Window Badges**:
   - Each window inside a workspace displays a distinct index badge (`1`–`9`).
   - Pressing a number immediately selects that window.
@@ -38,23 +44,49 @@ Built by **Sarthak Siddhpura**.
 
 ---
 
-## Installation
+## Installation & Setup
 
-### From Omarchy Marketplace / Git
+### 1. Developer Setup (Symlink Mode)
+If you are developing or customizing `omalt-tab`, use `make dev`. This creates a symlink in `~/.config/omarchy/plugins/` so your edits take effect immediately without copying files:
+
+```sh
+git clone https://github.com/codesmith28/omalt-tab.git ~/Projects/omalt-tab
+cd ~/Projects/omalt-tab
+make dev
+```
+
+### 2. Standalone Install (Copy Mode)
+To install a standalone copy into your Omarchy configuration:
+
+```sh
+cd ~/Projects/omalt-tab
+make install
+```
+
+### 3. Native Omarchy Package Manager (Git URL)
+Once hosted on GitHub or another remote, end users can install directly via Omarchy's plugin manager:
 
 ```sh
 omarchy plugin add https://github.com/codesmith28/omalt-tab.git --enable
 ```
 
-### Local Development / Manual Installation
+### 4. Updating
+- If using `make dev`: Simply edit your code and run `make restart` (or `omarchy restart shell`).
+- If using `make install`: Run `make update` in this repo.
+- If installed via `omarchy plugin add`: Run `omarchy plugin update io.github.codesmith28.omalt-tab`.
 
-To install or develop locally in Omarchy:
-
-```sh
-cp -r ~/Projects/omalt-tab ~/.config/omarchy/plugins/io.github.codesmith28.omalt-tab
-omarchy-shell shell rescanPlugins
-omarchy plugin enable io.github.codesmith28.omalt-tab
-```
+### 5. Makefile Target Reference
+| Target | Description |
+| --- | --- |
+| `make dev` | Symlinks repo into Omarchy plugins directory, validates, enables, and restarts shell |
+| `make install` | Copies files into Omarchy plugins directory, validates, enables, and restarts shell |
+| `make update` | Syncs latest changes and reloads shell |
+| `make check` | Runs unit tests, manifest validation, bash syntax, and lua syntax checks |
+| `make test` | Executes automated Node.js unit tests for model and navigation |
+| `make restart` | Restarts `omarchy-shell` to reload QML components into memory |
+| `make status` | Displays installation type, socket health, and legacy switcher status |
+| `make clean-legacy` | Disables obsolete standalone `hyprswitch` service and autostart script |
+| `make uninstall` | Disables plugin in Omarchy and removes it from `~/.config/omarchy/plugins` |
 
 ---
 
