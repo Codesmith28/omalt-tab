@@ -7,10 +7,30 @@ hl.unbind("ALT + SHIFT + TAB")
 local release_timer = nil
 local is_switching = false
 
--- Locate omalt-tab-client binary
-local client_cmd = os.getenv("HOME") .. "/Projects/omalt-tab/hypr/omalt-tab-client"
-if not io.open(client_cmd, "r") then
-  client_cmd = "omalt-tab-client"
+-- Locate omalt-tab-client binary dynamically
+local script_dir = nil
+local info = debug.getinfo(1, "S")
+if info and info.source and info.source:sub(1, 1) == "@" then
+  script_dir = info.source:sub(2):match("(.*/)")
+end
+
+local client_cmd = (script_dir and script_dir .. "omalt-tab-client") or "omalt-tab-client"
+local test_file = io.open(client_cmd, "r")
+if test_file then
+  test_file:close()
+else
+  local home = os.getenv("HOME")
+  for _, candidate in ipairs({
+    home .. "/.config/omarchy/plugins/io.github.codesmith28.omalt-tab/hypr/omalt-tab-client",
+    home .. "/Projects/omalt-tab/hypr/omalt-tab-client"
+  }) do
+    local f = io.open(candidate, "r")
+    if f then
+      f:close()
+      client_cmd = candidate
+      break
+    end
+  end
 end
 
 local function stop_release_watcher()

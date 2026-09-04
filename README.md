@@ -60,16 +60,34 @@ omarchy plugin enable io.github.codesmith28.omalt-tab
 
 ## Hyprland Bindings Setup
 
-To use the atomic Alt-release submap switcher in your Hyprland configuration:
+Plugins in Omarchy are stored in `~/.config/omarchy/plugins/`. Keybindings can be loaded directly from this standard location without copying any files.
 
-Add the following to your `~/.config/hypr/bindings.lua`:
+In your `~/.config/hypr/bindings.lua`:
+
+### Option A: Automatic Plugin Bindings Loader (Recommended)
+Automatically loads keybindings from all installed Omarchy plugins that provide `hypr/bindings.lua`:
 
 ```lua
--- Omalt-Tab (Quickshell Window Switcher)
-require("Projects.omalt-tab.hypr.bindings")
+-- Auto-load keybindings from installed Omarchy plugins (~/.config/omarchy/plugins/*/hypr/bindings.lua)
+local plugins_dir = os.getenv("HOME") .. "/.config/omarchy/plugins"
+local p = io.popen("find " .. plugins_dir .. " -maxdepth 3 -name 'bindings.lua' 2>/dev/null")
+if p then
+  for file in p:lines() do
+    dofile(file)
+  end
+  p:close()
+end
 ```
 
-Or copy `hypr/bindings.lua` into your Hyprland configuration directory.
+### Option B: Direct Sourcing
+Source `omalt-tab` specifically from its default plugin path:
+
+```lua
+local omalt_tab = os.getenv("HOME") .. "/.config/omarchy/plugins/io.github.codesmith28.omalt-tab/hypr/bindings.lua"
+if io.open(omalt_tab, "r") then
+  dofile(omalt_tab)
+end
+```
 
 ---
 
@@ -109,7 +127,7 @@ omalt-tab/
 ├── hypr/                    # Compositor integration
 │   ├── bindings.lua         # Hyprland submap configuration with Alt release timer
 │   └── omalt-tab-client     # Sub-millisecond UNIX domain socket client
-├── LICENSE                  # MIT License
+├── LICENSE                  # Apache 2.0 License
 └── README.md                # Documentation
 ```
 
