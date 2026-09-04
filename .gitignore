@@ -1,0 +1,8 @@
+# Editor and system artifacts
+*.swp
+*~
+.DS_Store
+*.bak
+
+# Sockets and runtime
+*.sock
