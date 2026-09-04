@@ -55,9 +55,9 @@ link: check
 	@mkdir -p "$(PLUGINS_DIR)"
 	@chmod +x hypr/omalt-tab-client
 	@if [ -d "$(TARGET_DIR)" ] && [ ! -L "$(TARGET_DIR)" ]; then \
-		echo "Backing up existing non-symlink plugin to $(TARGET_DIR).bak"; \
-		rm -rf "$(TARGET_DIR).bak"; \
-		mv "$(TARGET_DIR)" "$(TARGET_DIR).bak"; \
+		echo "Backing up existing non-symlink plugin to $(PLUGINS_DIR)/.$(PLUGIN_ID).bak"; \
+		rm -rf "$(PLUGINS_DIR)/.$(PLUGIN_ID).bak"; \
+		mv "$(TARGET_DIR)" "$(PLUGINS_DIR)/.$(PLUGIN_ID).bak"; \
 	fi
 	@ln -sfn "$(PROJECT_DIR)" "$(TARGET_DIR)"
 	@echo "--> Symlink created: $(TARGET_DIR) -> $(PROJECT_DIR)"
