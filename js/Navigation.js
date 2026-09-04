@@ -2,6 +2,8 @@
 
 .pragma library
 
+var DEFAULT_HOME_ROW_LETTERS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"];
+
 /**
  * Cycle index with wrap-around.
  */
@@ -194,20 +196,34 @@ function findSpatialTarget(workspacesData, currentAddress, direction) {
 
 /**
  * Resolves workspace jump by letter.
+ * If workspace is visible, selects first window.
+ * If workspace is empty or off-screen, switches directly to workspace ID.
  */
 function findWorkspaceJump(workspacesData, letter) {
-    if (!workspacesData || !letter) return null;
+    if (!letter) return null;
     var lower = letter.toLowerCase();
-    for (var i = 0; i < workspacesData.length; i++) {
-        var ws = workspacesData[i];
-        if (ws.letterLower === lower) {
-            if (ws.windows && ws.windows.length > 0) {
-                return { address: ws.windows[0].address, empty: false, wsId: ws.id };
-            } else {
-                return { address: null, empty: true, wsId: ws.id };
+
+    // 1. Check displayed workspaces
+    if (workspacesData && workspacesData.length > 0) {
+        for (var i = 0; i < workspacesData.length; i++) {
+            var ws = workspacesData[i];
+            if (ws.letterLower === lower) {
+                if (ws.windows && ws.windows.length > 0) {
+                    return { address: ws.windows[0].address, empty: false, wsId: ws.id };
+                } else {
+                    return { address: null, empty: true, wsId: ws.id };
+                }
             }
         }
     }
+
+    // 2. Fallback: map home-row letter directly to workspace ID (1..10)
+    var letters = DEFAULT_HOME_ROW_LETTERS;
+    var idx = letters.indexOf(lower);
+    if (idx !== -1) {
+        return { address: null, empty: true, wsId: idx + 1 };
+    }
+
     return null;
 }
 

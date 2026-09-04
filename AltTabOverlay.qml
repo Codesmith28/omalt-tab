@@ -481,7 +481,14 @@ Item {
         Rectangle {
             id: container
             anchors.centerIn: parent
-            width: Math.min(contentCol.implicitWidth + 48, win.width - 60)
+
+            // Dynamic Sizing: adapts to number of workspace cards and screen bounds
+            readonly property int minWidth: Math.max(headerBar.implicitWidth, footerBar.implicitWidth, 560)
+            readonly property int maxAllowedWidth: Math.max(win.width - 80, 400)
+            readonly property int naturalContentWidth: Math.max(wsRow.implicitWidth, minWidth)
+            readonly property int contentWidth: Math.min(naturalContentWidth, maxAllowedWidth)
+
+            width: contentWidth + 48
             height: contentCol.implicitHeight + 40
             radius: 16
             color: "#181825"
@@ -492,6 +499,8 @@ Item {
             scale: root.opened ? 1 : 0.96
             Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
             Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+            Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
             // Outer Shadow / Glow
             Rectangle {
@@ -508,37 +517,52 @@ Item {
             Column {
                 id: contentCol
                 anchors.centerIn: parent
+                width: container.contentWidth
                 spacing: 16
 
+                implicitWidth: container.contentWidth
+                implicitHeight: headerBar.implicitHeight + spacing + wsFlickable.implicitHeight + spacing + footerBar.implicitHeight
+
                 HeaderBar {
+                    id: headerBar
+                    width: parent.width
                     title: "OMALT-TAB"
                 }
 
                 Flickable {
                     id: wsFlickable
-                    width: Math.min(wsRow.implicitWidth, win.width - 120)
+                    width: parent.width
                     height: 236
+                    implicitWidth: parent.width
+                    implicitHeight: 236
                     contentWidth: wsRow.implicitWidth
                     contentHeight: 236
                     boundsBehavior: Flickable.StopAtBounds
                     clip: true
 
-                    Row {
-                        id: wsRow
-                        spacing: 14
+                    Item {
+                        width: Math.max(wsFlickable.width, wsRow.implicitWidth)
+                        height: 236
 
-                        Repeater {
-                            model: root.workspacesData
-                            WorkspaceCard {
-                                wsData: modelData
-                                selectedAddress: root.selectedAddress
-                                onWindowClicked: addr => {
-                                    root.selectAddress(addr);
-                                    root.commit();
-                                }
-                                onWorkspaceClicked: id => {
-                                    focusDispatcher.switchWorkspace(id);
-                                    root.cancel();
+                        Row {
+                            id: wsRow
+                            spacing: 14
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Repeater {
+                                model: root.workspacesData
+                                WorkspaceCard {
+                                    wsData: modelData
+                                    selectedAddress: root.selectedAddress
+                                    onWindowClicked: addr => {
+                                        root.selectAddress(addr);
+                                        root.commit();
+                                    }
+                                    onWorkspaceClicked: id => {
+                                        focusDispatcher.switchWorkspace(id);
+                                        root.cancel();
+                                    }
                                 }
                             }
                         }
@@ -546,6 +570,8 @@ Item {
                 }
 
                 FooterBar {
+                    id: footerBar
+                    width: parent.width
                     selectedClientData: root.selectedClientData
                 }
             }

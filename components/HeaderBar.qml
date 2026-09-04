@@ -5,11 +5,12 @@ Item {
 
     property string title: "OMALT-TAB"
 
-    width: parent ? parent.width : 600
-    height: 32
+    implicitHeight: 32
+    implicitWidth: Math.max(leftRow.implicitWidth + rightRow.implicitWidth + 24, 480)
 
     // Left: Icon + Title
     Row {
+        id: leftRow
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         spacing: 10
@@ -38,21 +39,24 @@ Item {
         }
     }
 
-    // Right: Ergonomic Keyboard shortcuts guide
+    // Right: Ergonomic Keyboard shortcuts guide (responsively adapts to width)
     Row {
+        id: rightRow
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         spacing: 8
 
         Rectangle {
+            id: hintWs
             height: 24
-            width: hintWs.implicitWidth + 14
+            width: txtWs.implicitWidth + 14
             radius: 6
             color: "#1e1e2e"
             border.width: 1
             border.color: "#313244"
+            visible: root.width >= 360
             Row {
-                id: hintWs
+                id: txtWs
                 anchors.centerIn: parent
                 spacing: 4
                 Text { text: "WS:"; color: "#6c7086"; font.pixelSize: 11 }
@@ -61,14 +65,16 @@ Item {
         }
 
         Rectangle {
+            id: hintWin
             height: 24
-            width: hintWin.implicitWidth + 14
+            width: txtWin.implicitWidth + 14
             radius: 6
             color: "#1e1e2e"
             border.width: 1
             border.color: "#313244"
+            visible: root.width >= 450
             Row {
-                id: hintWin
+                id: txtWin
                 anchors.centerIn: parent
                 spacing: 4
                 Text { text: "Win:"; color: "#6c7086"; font.pixelSize: 11 }
@@ -77,14 +83,16 @@ Item {
         }
 
         Rectangle {
+            id: hintArrows
             height: 24
-            width: hintArrows.implicitWidth + 14
+            width: txtArrows.implicitWidth + 14
             radius: 6
             color: "#1e1e2e"
             border.width: 1
             border.color: "#313244"
+            visible: root.width >= 530
             Row {
-                id: hintArrows
+                id: txtArrows
                 anchors.centerIn: parent
                 spacing: 4
                 Text { text: "Nav:"; color: "#6c7086"; font.pixelSize: 11 }
@@ -93,14 +101,16 @@ Item {
         }
 
         Rectangle {
+            id: hintTab
             height: 24
-            width: hintTab.implicitWidth + 14
+            width: txtTab.implicitWidth + 14
             radius: 6
             color: "#1e1e2e"
             border.width: 1
             border.color: "#313244"
+            visible: root.width >= 610
             Text {
-                id: hintTab
+                id: txtTab
                 anchors.centerIn: parent
                 text: "Tab / ⇧Tab"
                 color: "#a6adc8"

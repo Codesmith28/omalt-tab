@@ -6,8 +6,8 @@ Rectangle {
 
     property var selectedClientData: null
 
-    width: parent ? parent.width : 600
-    height: 52
+    implicitHeight: 52
+    implicitWidth: 500
     radius: 10
     color: "#11111b"
     border.width: 1
@@ -21,8 +21,8 @@ Rectangle {
         // Left: Icon + Title + Metadata
         Row {
             anchors.left: parent.left
-            anchors.right: statusHints.left
-            anchors.rightMargin: 12
+            anchors.right: statusHints.visible ? statusHints.left : parent.right
+            anchors.rightMargin: statusHints.visible ? 12 : 0
             anchors.verticalCenter: parent.verticalCenter
             spacing: 12
 
@@ -62,6 +62,7 @@ Rectangle {
             Column {
                 anchors.verticalCenter: parent.verticalCenter
                 spacing: 2
+                width: parent.width - 40
 
                 Text {
                     text: root.selectedClientData ? (root.selectedClientData.title || "Window") : "No window selected"
@@ -69,7 +70,7 @@ Rectangle {
                     font.pixelSize: 13
                     font.bold: true
                     elide: Text.ElideRight
-                    width: Math.min(implicitWidth, 550)
+                    width: parent.width
                 }
 
                 Row {
@@ -90,6 +91,7 @@ Rectangle {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 12
+            visible: root.width >= 460
 
             Text {
                 text: "Release Alt to switch"

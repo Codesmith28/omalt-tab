@@ -6,6 +6,8 @@ var DEFAULT_HOME_ROW_LETTERS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"
 
 /**
  * Parses raw JSON snapshot from Hyprland into structured workspaces and MRU windows.
+ * Dynamically filters out unneeded empty workspaces so the switcher only occupies
+ * the space that is actually needed.
  * @param {Object} data - Raw JSON with { clients, workspaces, monitors }
  * @param {Array<string>} wsLetters - Home row workspace letters array
  * @returns {Object} { workspaces: Array, mruList: Array }
@@ -36,9 +38,6 @@ function parseSnapshot(data, wsLetters) {
                !c.class.startsWith("org.omarchy.screensaver");
     });
 
-    // Sort workspaces ascending by ID
-    workspaces.sort(function(a, b) { return a.id - b.id; });
-
     // Group clients by workspace id
     var wsClientsMap = {};
     for (var i = 0; i < validClients.length; i++) {
@@ -48,24 +47,58 @@ function parseSnapshot(data, wsLetters) {
         wsClientsMap[wsId].push(c);
     }
 
+    // Identify active workspace ID
+    var activeWsId = (primaryMonitor.activeWorkspace && primaryMonitor.activeWorkspace.id > 0)
+        ? primaryMonitor.activeWorkspace.id
+        : -1;
+
+    // Dynamically select workspaces that occupy actual content:
+    // Workspaces with active windows, OR the currently active workspace
+    var visibleWorkspacesMap = {};
+    var visibleWorkspaces = [];
+
+    for (var w = 0; w < workspaces.length; w++) {
+        var ws = workspaces[w];
+        var wid = ws.id;
+        var winCount = (wsClientsMap[wid] && wsClientsMap[wid].length) || 0;
+        var isActive = (wid === activeWsId);
+
+        if (winCount > 0 || isActive) {
+            visibleWorkspacesMap[wid] = true;
+            visibleWorkspaces.push(ws);
+        }
+    }
+
+    // Also include any workspace from clients not present in workspaces array
+    for (var cWsId in wsClientsMap) {
+        var idNum = parseInt(cWsId);
+        if (!visibleWorkspacesMap[idNum]) {
+            visibleWorkspacesMap[idNum] = true;
+            visibleWorkspaces.push({ id: idNum, name: "" + idNum });
+        }
+    }
+
+    // Sort visible workspaces ascending by ID
+    visibleWorkspaces.sort(function(a, b) { return a.id - b.id; });
+
     var processedWorkspaces = [];
     var vpWidth = 280;
     var vpHeight = 175;
 
-    for (var wIdx = 0; wIdx < workspaces.length; wIdx++) {
-        var ws = workspaces[wIdx];
-        var wid = ws.id;
+    for (var wIdx = 0; wIdx < visibleWorkspaces.length; wIdx++) {
+        var curWs = visibleWorkspaces[wIdx];
+        var curWid = curWs.id;
 
-        var wsMon = monitorMap[ws.monitor] || monitorMap[ws.monitorID] || primaryMonitor;
+        var wsMon = monitorMap[curWs.monitor] || monitorMap[curWs.monitorID] || primaryMonitor;
         var scaleX = vpWidth / (wsMon.width || 1920);
         var scaleY = vpHeight / (wsMon.height || 1200);
 
-        // Letter assignment from home row keys: "asdfghjkl;"
-        var letter = (wid >= 1 && wid <= letters.length)
-            ? letters[wid - 1]
+        // Letter assignment from home row keys: "asdfghjkl;" (1 -> a, 2 -> s...)
+        var letter = (curWid >= 1 && curWid <= letters.length)
+            ? letters[curWid - 1]
             : letters[wIdx % letters.length];
 
-        var wsWindows = wsClientsMap[wid] || [];
+        var wsWindows = wsClientsMap[curWid] || [];
 
         // Sort windows within workspace spatially: left-to-right, top-to-bottom
         wsWindows.sort(function(a, b) {
@@ -90,7 +123,7 @@ function parseSnapshot(data, wsLetters) {
                 title: win.title || win.initialTitle || win.class || "Window",
                 clientClass: win.class || win.initialClass || "window",
                 initialClass: win.initialClass || "",
-                workspaceId: wid,
+                workspaceId: curWid,
                 wsLetter: letter.toUpperCase(),
                 wsIndex: num,
                 focusHistoryID: win.focusHistoryID,
@@ -103,11 +136,11 @@ function parseSnapshot(data, wsLetters) {
         }
 
         processedWorkspaces.push({
-            id: wid,
-            name: ws.name || ("" + wid),
+            id: curWid,
+            name: curWs.name || ("" + curWid),
             letter: letter.toUpperCase(),
             letterLower: letter.toLowerCase(),
-            isActive: (primaryMonitor.activeWorkspace && primaryMonitor.activeWorkspace.id === wid),
+            isActive: (curWid === activeWsId),
             windows: processedWindows
         });
     }

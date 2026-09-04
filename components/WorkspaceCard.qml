@@ -23,8 +23,10 @@ Rectangle {
         return false;
     }
 
-    width: 296
-    height: 228
+    implicitWidth: 296
+    implicitHeight: 228
+    width: implicitWidth
+    height: implicitHeight
     radius: 12
 
     color: containsSelected ? "#1e2030" : "#16161e"
