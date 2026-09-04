@@ -1,4 +1,6 @@
 import QtQuick
+import qs.Commons
+import qs.Ui
 
 Rectangle {
     id: root
@@ -33,11 +35,11 @@ Rectangle {
     implicitHeight: cardHeight
     width: cardWidth
     height: cardHeight
-    radius: 12
+    radius: Math.max(4, Math.round(Style.cornerRadius * 0.65))
 
-    color: containsSelected ? "#1e2030" : "#16161e"
+    color: containsSelected ? Util.alpha(Color.accent, 0.12) : Util.alpha(Color.foreground, 0.03)
     border.width: containsSelected ? 2 : 1
-    border.color: containsSelected ? "#7aa2f7" : (isActive ? "#414868" : "#24283b")
+    border.color: containsSelected ? Color.accent : (isActive ? Util.alpha(Color.accent, 0.5) : Util.alpha(Color.foreground, 0.15))
 
     Behavior on color { ColorAnimation { duration: 120 } }
     Behavior on border.color { ColorAnimation { duration: 120 } }
@@ -46,35 +48,35 @@ Rectangle {
 
     Column {
         anchors.fill: parent
-        anchors.margins: 8
-        spacing: 6
+        anchors.margins: Style.spacing.sm
+        spacing: Style.spacing.xs
 
         // Workspace Header
         Item {
             width: parent.width
-            height: 26
+            height: Math.max(26, Style.space(26))
 
             Row {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: 8
+                spacing: Style.spacing.sm
 
                 // Home-row Letter Badge (A, S, D, F, G, H, J, K, L, ;)
                 Rectangle {
-                    width: 24
-                    height: 24
-                    radius: 6
-                    color: root.containsSelected ? "#7aa2f7" : "#24283b"
+                    width: Math.max(22, Style.space(24))
+                    height: width
+                    radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+                    color: root.containsSelected ? Color.accent : Util.alpha(Color.foreground, 0.08)
                     border.width: 1
-                    border.color: root.containsSelected ? "#7aa2f7" : "#414868"
+                    border.color: root.containsSelected ? Color.accent : Util.alpha(Color.foreground, 0.2)
 
                     Text {
                         anchors.centerIn: parent
                         text: root.letter
-                        color: root.containsSelected ? "#11111b" : "#cdd6f4"
+                        color: root.containsSelected ? Color.background : Color.foreground
                         font.bold: true
-                        font.pixelSize: 13
-                        font.family: "monospace"
+                        font.pixelSize: Style.font.caption
+                        font.family: Style.font.family
                     }
                 }
 
@@ -82,8 +84,9 @@ Rectangle {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.cardWidth < 220 ? ("WS " + root.name) : ("Workspace " + root.name)
-                    color: root.containsSelected ? "#cdd6f4" : (root.isActive ? "#a6adc8" : "#7f849c")
-                    font.pixelSize: 12
+                    color: root.containsSelected ? Color.foreground : (root.isActive ? Color.foreground : Color.muted)
+                    font.family: Style.font.menuFamily
+                    font.pixelSize: Style.font.caption
                     font.weight: root.containsSelected ? Font.Bold : Font.Medium
                 }
             }
@@ -93,19 +96,20 @@ Rectangle {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 width: countText.implicitWidth + 10
-                height: 18
-                radius: 9
-                color: "#181825"
+                height: Math.max(18, Style.space(18))
+                radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+                color: Util.alpha(Color.foreground, 0.05)
                 border.width: 1
-                border.color: "#313244"
+                border.color: Util.alpha(Color.foreground, 0.15)
                 visible: root.cardWidth >= 200
 
                 Text {
                     id: countText
                     anchors.centerIn: parent
                     text: root.windows.length === 0 ? "empty" : (root.windows.length + " win")
-                    color: root.windows.length === 0 ? "#6c7086" : "#a6adc8"
-                    font.pixelSize: 10
+                    color: root.windows.length === 0 ? Color.muted : Color.foreground
+                    font.family: Style.font.menuFamily
+                    font.pixelSize: Style.font.small
                 }
             }
 
@@ -121,10 +125,10 @@ Rectangle {
             id: viewport
             width: parent.width
             height: parent.height - 32
-            radius: 8
-            color: "#11111b"
+            radius: Math.max(3, Math.round(Style.cornerRadius * 0.45))
+            color: Util.alpha(Color.background, 0.85)
             border.width: 1
-            border.color: root.containsSelected ? "#3b4261" : "#1f2335"
+            border.color: root.containsSelected ? Util.alpha(Color.accent, 0.35) : Util.alpha(Color.foreground, 0.1)
             clip: true
 
             Behavior on width { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
@@ -137,13 +141,14 @@ Rectangle {
 
                 Column {
                     anchors.centerIn: parent
-                    spacing: 6
+                    spacing: Style.spacing.xs
                     opacity: root.containsSelected ? 0.95 : 0.6
 
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: root.containsSelected ? "Empty Workspace" : "Empty"
-                        color: root.containsSelected ? "#89b4fa" : "#6c7086"
+                        color: root.containsSelected ? Color.accent : Color.muted
+                        font.family: Style.font.menuFamily
                         font.pixelSize: Math.max(11, Math.min(13, Math.round(root.cardWidth / 22)))
                         font.bold: root.containsSelected
                         font.italic: !root.containsSelected
@@ -151,9 +156,9 @@ Rectangle {
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: root.containsSelected ? "Release Alt to switch" : ("Press [" + root.letter + "] to switch")
-                        color: root.containsSelected ? "#cdd6f4" : "#585b70"
+                        color: root.containsSelected ? Color.foreground : Color.muted
+                        font.family: Style.font.family
                         font.pixelSize: Math.max(9, Math.min(11, Math.round(root.cardWidth / 26)))
-                        font.family: "monospace"
                     }
                 }
 

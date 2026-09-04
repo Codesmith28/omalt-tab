@@ -1,5 +1,7 @@
 import QtQuick
 import Quickshell
+import qs.Commons
+import qs.Ui
 
 Rectangle {
     id: root
@@ -15,10 +17,10 @@ Rectangle {
     width: winData ? Math.max(45, Math.min(parent.width - x, Math.round((winData.normW !== undefined ? winData.normW : (winData.rw / 280)) * parent.width))) : 45
     height: winData ? Math.max(35, Math.min(parent.height - y, Math.round((winData.normH !== undefined ? winData.normH : (winData.rh / 175)) * parent.height))) : 35
 
-    radius: 8
-    color: isSelected ? "#2a2d48" : (mouseArea.containsMouse ? "#222436" : "#1a1b26")
-    border.width: isSelected ? 2.5 : 1
-    border.color: isSelected ? "#7aa2f7" : (mouseArea.containsMouse ? "#565f89" : "#2f334d")
+    radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+    color: isSelected ? Util.alpha(Color.accent, 0.25) : (mouseArea.containsMouse ? Util.alpha(Color.foreground, 0.10) : Util.alpha(Color.foreground, 0.05))
+    border.width: isSelected ? 2 : 1
+    border.color: isSelected ? Color.accent : (mouseArea.containsMouse ? Util.alpha(Color.accent, 0.5) : Util.alpha(Color.foreground, 0.15))
 
     clip: true
 
@@ -36,8 +38,8 @@ Rectangle {
         radius: parent.radius + 2
         color: "transparent"
         border.width: 1.5
-        border.color: root.isSelected ? "#3d59a1" : "transparent"
-        opacity: root.isSelected ? 0.6 : 0
+        border.color: root.isSelected ? Util.alpha(Color.accent, 0.45) : "transparent"
+        opacity: root.isSelected ? 0.7 : 0
         z: -1
         Behavior on opacity { NumberAnimation { duration: 120 } }
     }
@@ -51,18 +53,18 @@ Rectangle {
         anchors.margins: 3
         width: Math.min(20, Math.max(16, Math.round(root.width / 4)))
         height: width
-        radius: 4
-        color: root.isSelected ? "#7aa2f7" : "#16161e"
+        radius: Math.max(2, Math.round(Style.cornerRadius * 0.25))
+        color: root.isSelected ? Color.accent : Util.alpha(Color.background, 0.85)
         border.width: 1
-        border.color: root.isSelected ? "#7aa2f7" : "#06b6d4"
+        border.color: Color.accent
 
         Text {
             anchors.centerIn: parent
             text: root.winData ? root.winData.wsIndex : "1"
-            color: root.isSelected ? "#11111b" : "#06b6d4"
+            color: root.isSelected ? Color.background : Color.accent
             font.pixelSize: Math.max(9, parent.height - 7)
             font.bold: true
-            font.family: "monospace"
+            font.family: Style.font.family
         }
     }
 
@@ -120,14 +122,15 @@ Rectangle {
         Rectangle {
             anchors.fill: parent
             visible: appIcon.status !== Image.Ready
-            radius: 6
-            color: "#313244"
+            radius: Math.max(3, Math.round(Style.cornerRadius * 0.3))
+            color: Util.alpha(Color.foreground, 0.12)
             Text {
                 anchors.centerIn: parent
                 text: root.winData && root.winData.clientClass ?
                       root.winData.clientClass.substring(0, 1).toUpperCase() : "W"
-                color: "#cdd6f4"
+                color: Color.foreground
                 font.bold: true
+                font.family: Style.font.menuFamily
                 font.pixelSize: 13
             }
         }
@@ -145,8 +148,9 @@ Rectangle {
         Text {
             anchors.fill: parent
             text: root.winData ? (root.winData.title || root.winData.clientClass) : ""
-            color: root.isSelected ? "#cdd6f4" : "#a6adc8"
-            font.pixelSize: 9
+            color: root.isSelected ? Color.foreground : Color.muted
+            font.family: Style.font.menuFamily
+            font.pixelSize: Style.font.small
             font.weight: root.isSelected ? Font.Bold : Font.Normal
             elide: Text.ElideRight
             horizontalAlignment: Text.AlignHCenter

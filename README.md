@@ -8,6 +8,12 @@ Built by **Sarthak Siddhpura**.
 
 ## Features
 
+- **Native Omarchy Theme Integration**:
+  - Dynamically follows the active Omarchy theme (`omarchy theme set <theme>`) including Hackerman, Tokyo Night, Catppuccin, Nord, Rose Pine, etc.
+  - Seamlessly inherits theme palette colors (`Color.menu`, `Color.accent`, `Color.foreground`, `Color.background`, `Color.muted`) and scrim dimming.
+  - Automatically matches active system fonts (`Style.font.family`, `Style.font.menuFamily`) and typography scale (`Style.font.*`).
+  - Directly respects Hyprland corner rounding (`Style.cornerRadius`) and active border gradients via `BorderSurface`.
+  - Updates reactively in real time when themes or fonts are switched.
 - **Dynamic Proportional Box Dimensions**:
   - Automatically sizes and scales cards based on current screen resolution and aspect ratio (16:9, 16:10, ultrawide).
   - Flexibly accommodates anywhere from 1 to 10 workspaces without clipping or overflow.

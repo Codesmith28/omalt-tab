@@ -1,11 +1,13 @@
 import QtQuick
+import qs.Commons
+import qs.Ui
 
 Item {
     id: root
 
     property string title: "OMALT-TAB"
 
-    implicitHeight: 32
+    implicitHeight: Math.max(32, Style.space(32))
     implicitWidth: Math.max(leftRow.implicitWidth + 20, 240)
 
     // Left: Icon + Title
@@ -13,27 +15,31 @@ Item {
         id: leftRow
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        spacing: 10
+        spacing: Style.spacing.md
 
         Rectangle {
-            width: 28
-            height: 28
-            radius: 7
-            color: "#313244"
+            width: Math.max(26, Style.space(28))
+            height: width
+            radius: Math.max(3, Math.round(Style.cornerRadius * 0.4))
+            color: Util.alpha(Color.accent, 0.15)
+            border.width: 1
+            border.color: Util.alpha(Color.accent, 0.3)
             Text {
                 anchors.centerIn: parent
                 text: "⇄"
-                color: "#89b4fa"
-                font.pixelSize: 16
+                color: Color.accent
+                font.pixelSize: Style.font.title
                 font.bold: true
+                font.family: Style.font.family
             }
         }
 
         Text {
             anchors.verticalCenter: parent.verticalCenter
             text: root.title
-            color: "#cdd6f4"
-            font.pixelSize: 14
+            color: Color.menu.text
+            font.family: Style.font.menuFamily
+            font.pixelSize: Style.font.title
             font.bold: true
             font.letterSpacing: 1.5
         }
@@ -44,77 +50,111 @@ Item {
         id: rightRow
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        spacing: 8
+        spacing: Style.spacing.sm
 
         Rectangle {
             id: hintWs
-            height: 24
+            height: Math.max(22, Style.space(24))
             width: txtWs.implicitWidth + 14
-            radius: 6
-            color: "#1e1e2e"
+            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            color: Util.alpha(Color.foreground, Style.normalFillAlpha)
             border.width: 1
-            border.color: "#313244"
+            border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
             visible: root.width >= 360
             Row {
                 id: txtWs
                 anchors.centerIn: parent
                 spacing: 4
-                Text { text: "WS:"; color: "#6c7086"; font.pixelSize: 11 }
-                Text { text: "A S D F G H J K L ;"; color: "#89b4fa"; font.pixelSize: 11; font.bold: true; font.family: "monospace" }
+                Text {
+                    text: "WS:"
+                    color: Color.muted
+                    font.family: Style.font.menuFamily
+                    font.pixelSize: Style.font.caption
+                }
+                Text {
+                    text: "A S D F G H J K L ;"
+                    color: Color.accent
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    font.bold: true
+                }
             }
         }
 
         Rectangle {
             id: hintWin
-            height: 24
+            height: Math.max(22, Style.space(24))
             width: txtWin.implicitWidth + 14
-            radius: 6
-            color: "#1e1e2e"
+            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            color: Util.alpha(Color.foreground, Style.normalFillAlpha)
             border.width: 1
-            border.color: "#313244"
+            border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
             visible: root.width >= 450
             Row {
                 id: txtWin
                 anchors.centerIn: parent
                 spacing: 4
-                Text { text: "Win:"; color: "#6c7086"; font.pixelSize: 11 }
-                Text { text: "1-9"; color: "#06b6d4"; font.pixelSize: 11; font.bold: true; font.family: "monospace" }
+                Text {
+                    text: "Win:"
+                    color: Color.muted
+                    font.family: Style.font.menuFamily
+                    font.pixelSize: Style.font.caption
+                }
+                Text {
+                    text: "1-9"
+                    color: Color.accent
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    font.bold: true
+                }
             }
         }
 
         Rectangle {
             id: hintArrows
-            height: 24
+            height: Math.max(22, Style.space(24))
             width: txtArrows.implicitWidth + 14
-            radius: 6
-            color: "#1e1e2e"
+            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            color: Util.alpha(Color.foreground, Style.normalFillAlpha)
             border.width: 1
-            border.color: "#313244"
+            border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
             visible: root.width >= 530
             Row {
                 id: txtArrows
                 anchors.centerIn: parent
                 spacing: 4
-                Text { text: "Nav:"; color: "#6c7086"; font.pixelSize: 11 }
-                Text { text: "← → ↑ ↓"; color: "#a6e3a1"; font.pixelSize: 11; font.bold: true }
+                Text {
+                    text: "Nav:"
+                    color: Color.muted
+                    font.family: Style.font.menuFamily
+                    font.pixelSize: Style.font.caption
+                }
+                Text {
+                    text: "← → ↑ ↓"
+                    color: Color.accent
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    font.bold: true
+                }
             }
         }
 
         Rectangle {
             id: hintTab
-            height: 24
+            height: Math.max(22, Style.space(24))
             width: txtTab.implicitWidth + 14
-            radius: 6
-            color: "#1e1e2e"
+            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            color: Util.alpha(Color.foreground, Style.normalFillAlpha)
             border.width: 1
-            border.color: "#313244"
+            border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
             visible: root.width >= 610
             Text {
                 id: txtTab
                 anchors.centerIn: parent
                 text: "Tab / ⇧Tab"
-                color: "#a6adc8"
-                font.pixelSize: 11
+                color: Color.foreground
+                font.family: Style.font.menuFamily
+                font.pixelSize: Style.font.caption
                 font.bold: true
             }
         }

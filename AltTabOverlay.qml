@@ -3,6 +3,8 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
+import qs.Commons
+import qs.Ui
 import "components"
 import "js/WindowModel.js" as WindowModel
 import "js/Navigation.js" as Navigation
@@ -14,6 +16,17 @@ Item {
     property string omarchyPath: Quickshell.env("OMARCHY_PATH")
     property var shell: null
     property var manifest: null
+
+    // Omarchy Theme Integration
+    property color background: Color.menu.background
+    property color foreground: Color.menu.text
+    property color border: Color.menu.border
+    property var borderSpec: Border.surfaceSpec("menu", "border", border, Math.max(1, Style.space(2)))
+    property color scrim: Color.menu.scrim
+    property color selectedBackground: Color.menu.selectedBackground
+    property color selectedText: Color.menu.selectedText
+    readonly property int cornerRadius: Style.cornerRadius
+    property string fontFamily: Style.font.menuFamily
 
     // Switcher state
     property bool opened: false
@@ -452,7 +465,7 @@ Item {
         Rectangle {
             id: scrim
             anchors.fill: parent
-            color: "#60000000"
+            color: root.scrim
             opacity: root.opened ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 120 } }
 
@@ -547,7 +560,7 @@ Item {
         }
 
         // Central Switcher Card Container
-        Rectangle {
+        BorderSurface {
             id: container
             anchors.centerIn: parent
 
@@ -579,10 +592,9 @@ Item {
 
             width: contentWidth + 48
             height: Math.min(contentCol.implicitHeight + 40, maxAllowedHeight)
-            radius: 16
-            color: "#181825"
-            border.width: 1.5
-            border.color: "#313244"
+            radius: root.cornerRadius
+            color: root.background
+            borderSpec: root.borderSpec
 
             opacity: root.opened ? 1 : 0
             scale: root.opened ? 1 : 0.96
@@ -598,7 +610,7 @@ Item {
                 radius: parent.radius + 3
                 color: "transparent"
                 border.width: 2
-                border.color: "#11111b"
+                border.color: Util.alpha(Color.background, 0.7)
                 opacity: 0.7
                 z: -1
             }
@@ -607,7 +619,7 @@ Item {
                 id: contentCol
                 anchors.centerIn: parent
                 width: container.contentWidth
-                spacing: 16
+                spacing: Style.spacing.panelGap
 
                 HeaderBar {
                     id: headerBar

@@ -1,36 +1,38 @@
 import QtQuick
 import Quickshell
+import qs.Commons
+import qs.Ui
 
 Rectangle {
     id: root
 
     property var selectedClientData: null
 
-    implicitHeight: 52
+    implicitHeight: Math.max(52, Style.space(52))
     implicitWidth: 280
-    radius: 10
-    color: "#11111b"
+    radius: Math.max(4, Math.round(Style.cornerRadius * 0.5))
+    color: Util.alpha(Color.background, 0.7)
     border.width: 1
-    border.color: "#24283b"
+    border.color: Util.alpha(Color.foreground, 0.15)
 
     Item {
         anchors.fill: parent
-        anchors.leftMargin: 12
-        anchors.rightMargin: 12
+        anchors.leftMargin: Style.spacing.md
+        anchors.rightMargin: Style.spacing.md
 
         // Left: Icon + Title + Metadata
         Row {
             anchors.left: parent.left
             anchors.right: statusHints.visible ? statusHints.left : parent.right
-            anchors.rightMargin: statusHints.visible ? 12 : 0
+            anchors.rightMargin: statusHints.visible ? Style.spacing.md : 0
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 12
+            spacing: Style.spacing.md
 
             Image {
                 id: appIcon
                 anchors.verticalCenter: parent.verticalCenter
-                width: 28
-                height: 28
+                width: Math.max(26, Style.space(28))
+                height: width
                 source: {
                     if (!root.selectedClientData || root.selectedClientData.isWorkspace) return "";
                     var cls = root.selectedClientData.clientClass || "";
@@ -62,12 +64,12 @@ Rectangle {
 
             Rectangle {
                 anchors.verticalCenter: parent.verticalCenter
-                width: 28
-                height: 28
-                radius: 7
-                color: "#24283b"
+                width: Math.max(26, Style.space(28))
+                height: width
+                radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+                color: Util.alpha(Color.foreground, 0.08)
                 border.width: 1
-                border.color: "#414868"
+                border.color: Util.alpha(Color.foreground, 0.2)
                 visible: !appIcon.visible
 
                 Text {
@@ -81,10 +83,10 @@ Rectangle {
                         }
                         return "⇄";
                     }
-                    color: "#89b4fa"
+                    color: Color.accent
                     font.bold: true
-                    font.pixelSize: 13
-                    font.family: "monospace"
+                    font.pixelSize: Style.font.caption
+                    font.family: Style.font.family
                 }
             }
 
@@ -101,15 +103,16 @@ Rectangle {
                         }
                         return root.selectedClientData.title || "Window";
                     }
-                    color: "#cdd6f4"
-                    font.pixelSize: 13
+                    color: Color.foreground
+                    font.family: Style.font.menuFamily
+                    font.pixelSize: Style.font.body
                     font.bold: true
                     elide: Text.ElideRight
                     width: parent.width
                 }
 
                 Row {
-                    spacing: 8
+                    spacing: Style.spacing.sm
                     Text {
                         text: {
                             if (!root.selectedClientData) return "";
@@ -118,8 +121,9 @@ Rectangle {
                             }
                             return "Workspace [" + (root.selectedClientData.wsLetter || "1") + "]  •  Window #" + (root.selectedClientData.wsIndex || "1") + "  •  " + (root.selectedClientData.clientClass || "");
                         }
-                        color: "#89b4fa"
-                        font.pixelSize: 11
+                        color: Color.accent
+                        font.family: Style.font.menuFamily
+                        font.pixelSize: Style.font.caption
                         elide: Text.ElideRight
                     }
                 }
@@ -131,27 +135,29 @@ Rectangle {
             id: statusHints
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 12
+            spacing: Style.spacing.md
             visible: root.width >= 430
 
             Text {
                 text: "Release Alt to switch"
-                color: "#a6adc8"
-                font.pixelSize: 11
+                color: Color.muted
+                font.family: Style.font.menuFamily
+                font.pixelSize: Style.font.caption
                 font.italic: true
             }
 
             Rectangle {
                 width: 1
                 height: 16
-                color: "#313244"
+                color: Util.alpha(Color.foreground, 0.15)
                 anchors.verticalCenter: parent.verticalCenter
             }
 
             Text {
                 text: "Esc: Cancel"
-                color: "#6c7086"
-                font.pixelSize: 11
+                color: Color.muted
+                font.family: Style.font.menuFamily
+                font.pixelSize: Style.font.caption
             }
         }
     }
