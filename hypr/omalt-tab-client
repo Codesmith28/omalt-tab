@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# omalt-tab-client: Fast client for omalt-tab in Omarchy & Hyprland
+
+CMD="${*:-next}"
+UID_NUM="$(id -u)"
+SOCK="/run/user/${UID_NUM}/omalt-tab.sock"
+PLUGIN_ID="io.github.codesmith28.omalt-tab"
+
+# 1. Fast path: Direct UNIX domain socket connection (sub-millisecond latency)
+if [ -S "$SOCK" ]; then
+    if echo "$CMD" | socat - UNIX-CONNECT:"$SOCK" 2>/dev/null; then
+        exit 0
+    fi
+fi
+
+# 2. Omarchy Shell IPC fallback
+if command -v omarchy-shell >/dev/null 2>&1; then
+    # Map command to omarchy-shell method
+    ACTION="${1:-next}"
+    case "$ACTION" in
+        next|prev|commit|cancel|toggle|left|right|up|down)
+            omarchy-shell shell call "$PLUGIN_ID" "$ACTION" 2>/dev/null && exit 0
+            ;;
+        workspace)
+            omarchy-shell shell call "$PLUGIN_ID" "jumpWorkspace" "${2:-a}" 2>/dev/null && exit 0
+            ;;
+        window)
+            omarchy-shell shell call "$PLUGIN_ID" "jumpWindow" "${2:-1}" 2>/dev/null && exit 0
+            ;;
+        *)
+            omarchy-shell shell summon "$PLUGIN_ID" "{}" 2>/dev/null && exit 0
+            ;;
+    esac
+fi
+
+# 3. Direct Quickshell IPC fallback
+if [ -n "$OMARCHY_PATH" ]; then
+    quickshell ipc -p "$OMARCHY_PATH/shell" call shell call "$PLUGIN_ID" "$CMD" 2>/dev/null || true
+fi

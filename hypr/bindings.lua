@@ -1,0 +1,111 @@
+-- bindings.lua: Hyprland & Omarchy bindings for omalt-tab window switcher
+
+-- Unbind default Tab switchers if present
+hl.unbind("ALT + TAB")
+hl.unbind("ALT + SHIFT + TAB")
+
+local release_timer = nil
+local is_switching = false
+
+-- Locate omalt-tab-client binary
+local client_cmd = os.getenv("HOME") .. "/Projects/omalt-tab/hypr/omalt-tab-client"
+if not io.open(client_cmd, "r") then
+  client_cmd = "omalt-tab-client"
+end
+
+local function stop_release_watcher()
+  if release_timer then
+    release_timer:set_enabled(false)
+    release_timer = nil
+  end
+end
+
+local function commit_and_reset()
+  stop_release_watcher()
+  if not is_switching then return end
+  is_switching = false
+  hl.exec_cmd(client_cmd .. " commit")
+  hl.dispatch(hl.dsp.submap("reset"))
+end
+
+local function cancel_and_reset()
+  stop_release_watcher()
+  if not is_switching then return end
+  is_switching = false
+  hl.exec_cmd(client_cmd .. " cancel")
+  hl.dispatch(hl.dsp.submap("reset"))
+end
+
+local function start_release_watcher()
+  stop_release_watcher()
+  is_switching = true
+  release_timer = hl.timer(function()
+    if not is_switching or hl.get_current_submap() ~= "omalt-tab" then
+      stop_release_watcher()
+      return
+    end
+    local alt_l = hl.is_key_down("Alt_L")
+    local alt_r = hl.is_key_down("Alt_R")
+    if not alt_l and not alt_r then
+      commit_and_reset()
+    end
+  end, { timeout = 10, type = "repeat" })
+end
+
+-- Define omalt-tab submap for robust modal switching
+hl.define_submap("omalt-tab", function()
+  -- Cycling inside switcher
+  hl.bind("TAB", hl.dsp.exec_cmd(client_cmd .. " next"))
+  hl.bind("ALT + TAB", hl.dsp.exec_cmd(client_cmd .. " next"))
+  hl.bind("SHIFT + TAB", hl.dsp.exec_cmd(client_cmd .. " prev"))
+  hl.bind("ALT + SHIFT + TAB", hl.dsp.exec_cmd(client_cmd .. " prev"))
+
+  -- Directional spatial navigation
+  hl.bind("Left", hl.dsp.exec_cmd(client_cmd .. " left"))
+  hl.bind("ALT + Left", hl.dsp.exec_cmd(client_cmd .. " left"))
+  hl.bind("Right", hl.dsp.exec_cmd(client_cmd .. " right"))
+  hl.bind("ALT + Right", hl.dsp.exec_cmd(client_cmd .. " right"))
+  hl.bind("Up", hl.dsp.exec_cmd(client_cmd .. " up"))
+  hl.bind("ALT + Up", hl.dsp.exec_cmd(client_cmd .. " up"))
+  hl.bind("Down", hl.dsp.exec_cmd(client_cmd .. " down"))
+  hl.bind("ALT + Down", hl.dsp.exec_cmd(client_cmd .. " down"))
+
+  -- Home row workspace keys: asdfghjkl;
+  local ws_keys = { "a", "s", "d", "f", "g", "h", "j", "k", "l", "semicolon" }
+  local ws_letters = { "a", "s", "d", "f", "g", "h", "j", "k", "l", ";" }
+  for idx, k in ipairs(ws_keys) do
+    local letter = ws_letters[idx]
+    hl.bind(k, hl.dsp.exec_cmd(client_cmd .. " workspace " .. letter))
+    hl.bind("ALT + " .. k, hl.dsp.exec_cmd(client_cmd .. " workspace " .. letter))
+  end
+
+  -- Window numbers: 1-9
+  for i = 1, 9 do
+    hl.bind(tostring(i), hl.dsp.exec_cmd(client_cmd .. " window " .. i))
+    hl.bind("ALT + " .. tostring(i), hl.dsp.exec_cmd(client_cmd .. " window " .. i))
+  end
+
+  -- Fallback explicit release binds
+  hl.bind("Alt_L", commit_and_reset, { release = true })
+  hl.bind("Alt_R", commit_and_reset, { release = true })
+
+  -- Manual confirmation (Enter / Space)
+  hl.bind("Return", commit_and_reset)
+  hl.bind("space", commit_and_reset)
+
+  -- Cancel on Escape
+  hl.bind("Escape", cancel_and_reset)
+end)
+
+-- Main triggers: open switcher, enter submap, and watch for Alt release
+o.bind("ALT + TAB", "Window switcher (next)", function()
+  hl.exec_cmd(client_cmd .. " next")
+  hl.dispatch(hl.dsp.submap("omalt-tab"))
+  start_release_watcher()
+end)
+
+o.bind("ALT + SHIFT + TAB", "Window switcher (prev)", function()
+  hl.exec_cmd(client_cmd .. " prev")
+  hl.dispatch(hl.dsp.submap("omalt-tab"))
+  start_release_watcher()
+end)

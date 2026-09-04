@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.codesmith28.omalt-tab",
+  "name": "omalt-tab",
+  "version": "1.0.0",
+  "author": "Sarthak Siddhpura",
+  "license": "MIT",
+  "description": "Ergonomic Alt+Tab window switcher with home-row workspace navigation and spatial layout for Hyprland and Omarchy.",
+  "kinds": [
+    "overlay"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "overlay": "AltTabOverlay.qml"
+  }
+}
