@@ -8,6 +8,7 @@ TARGET_DIR := $(PLUGINS_DIR)/$(PLUGIN_ID)
 PROJECT_DIR := $(shell pwd -P)
 UID_NUM := $(shell id -u)
 SOCKET := /run/user/$(UID_NUM)/omalt-tab.sock
+HYPR_BINDINGS := $(HOME)/.config/hypr/bindings.lua
 
 .PHONY: all help test validate check dev link install update uninstall restart status clean-legacy
 
@@ -70,6 +71,10 @@ link: check
 		echo "--> Ensuring plugin is enabled..."; \
 		omarchy plugin enable "$(PLUGIN_ID)" >/dev/null 2>&1 || true; \
 	fi
+	@if [ -f "$(HYPR_BINDINGS)" ] && ! grep -q "$(PLUGIN_ID)" "$(HYPR_BINDINGS)"; then \
+		echo "--> Adding omalt-tab binding loader to $(HYPR_BINDINGS)..."; \
+		printf '\n-- Omarchy Plugins: omalt-tab window switcher\nlocal omalt_tab_binding = (os.getenv("HOME") or "") .. "/.config/omarchy/plugins/$(PLUGIN_ID)/hypr/bindings.lua"\nlocal f_omalt = io.open(omalt_tab_binding, "r")\nif f_omalt then f_omalt:close(); dofile(omalt_tab_binding) end\n' >> "$(HYPR_BINDINGS)"; \
+	fi
 	@$(MAKE) restart
 	@echo "✓ Development setup complete. Code edits in $(PROJECT_DIR) are now live on shell restart."
 
@@ -102,6 +107,10 @@ install: check
 		echo "--> Enabling plugin..."; \
 		omarchy plugin enable "$(PLUGIN_ID)" >/dev/null 2>&1 || true; \
 	fi
+	@if [ -f "$(HYPR_BINDINGS)" ] && ! grep -q "$(PLUGIN_ID)" "$(HYPR_BINDINGS)"; then \
+		echo "--> Adding omalt-tab binding loader to $(HYPR_BINDINGS)..."; \
+		printf '\n-- Omarchy Plugins: omalt-tab window switcher\nlocal omalt_tab_binding = (os.getenv("HOME") or "") .. "/.config/omarchy/plugins/$(PLUGIN_ID)/hypr/bindings.lua"\nlocal f_omalt = io.open(omalt_tab_binding, "r")\nif f_omalt then f_omalt:close(); dofile(omalt_tab_binding) end\n' >> "$(HYPR_BINDINGS)"; \
+	fi
 	@$(MAKE) restart
 	@echo "✓ omalt-tab installed successfully!"
 
@@ -123,6 +132,9 @@ uninstall:
 	@echo "--> Removing $(TARGET_DIR)..."
 	@rm -rf "$(TARGET_DIR)"
 	@rm -f "$(HOME)/.local/bin/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab"
+	@if [ -f "$(HYPR_BINDINGS)" ]; then \
+		sed -i '/$(PLUGIN_ID)/d' "$(HYPR_BINDINGS)"; \
+	fi
 	@$(MAKE) restart
 	@echo "✓ omalt-tab uninstalled."
 
@@ -155,6 +167,12 @@ status:
 		omarchy plugin list | grep -E "$(PLUGIN_ID)|ID" || echo "Not registered in omarchy plugin list"; \
 	else \
 		echo "omarchy CLI not found"; \
+	fi
+	@echo -n "Hyprland Bindings: "
+	@if [ -f "$(HYPR_BINDINGS)" ] && grep -q "$(PLUGIN_ID)" "$(HYPR_BINDINGS)"; then \
+		echo "Registered in $(HYPR_BINDINGS)"; \
+	else \
+		echo "Missing from $(HYPR_BINDINGS)"; \
 	fi
 	@echo -n "UNIX Domain Socket: "
 	@if [ -S "$(SOCKET)" ]; then \
