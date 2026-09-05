@@ -197,36 +197,37 @@ end
 
 ---
 
-## 🏗 Architecture
+## 🏗 Architecture & Responsibilities
+
+The codebase follows a clean separation of concerns across presentation, core algorithms, compositor integration, and testing:
 
 ```
 omalt-tab/
-├── manifest.json            # Omarchy plugin manifest contract (schemaVersion: 1)
-├── AltTabOverlay.qml        # Main Quickshell overlay (IPC, socket server, lifecycle)
-├── components/              # Modular UI components
-│   ├── WindowTile.qml       # Scaled window tile with icon, badge, and selection glow
-│   ├── WorkspaceCard.qml    # Miniature desktop workspace preview
-│   ├── HeaderBar.qml        # Header with title and keyboard shortcut hints
-│   └── FooterBar.qml        # Selected window title, class, and metadata footer
-├── js/                      # Decoupled business and navigation logic
-│   ├── Config.js            # Central configuration & feature flag defaults
-│   ├── WindowModel.js       # Hyprland JSON snapshot parser & coordinate scaler
-│   ├── Navigation.js        # MRU cycler, spatial navigation, & jump resolvers
-│   └── Icons.js             # FreeDesktop icon candidate resolver & PWA cache
-├── hypr/                    # Compositor integration
-│   ├── bindings.lua         # Hyprland submap configuration with Alt release watcher
-│   └── omalt-tab-client     # Sub-millisecond UNIX domain socket client script
-├── demo/                    # Demo showcases and visual media
-│   ├── demo.gif             # Full-quality showcase animation (lossless 1920x1200)
-│   ├── demo.mp4             # High-FPS video recording (60fps source)
-│   ├── panel.png            # Close-up UI panel showcase
-│   └── full.png             # Full desktop scrim screenshot
-├── tests/                   # Automated unit tests
-│   └── test_logic.js        # Node.js regression tests for navigation & parsing
-├── Makefile                 # Developer lifecycle and build automation
-├── LICENSE                  # Apache 2.0 License
-└── README.md                # Documentation & showcase
+├── components/          # Modular QML visual presentation layer
+├── js/                  # Decoupled navigation math, model parser, & icon resolver
+├── hypr/                # Hyprland keybinding submaps & IPC client script
+├── tests/               # Automated regression and logic unit tests
+├── demo/                # Showcase recordings and high-resolution media
+├── AltTabOverlay.qml    # Main shell overlay entry point & IPC coordinator
+└── manifest.json        # Omarchy plugin manifest contract
 ```
+
+### Directory Breakdown
+
+- **`components/` (Presentation Layer)**:
+  Modular QML components handling all UI layout and styling. Houses miniature desktop cards (`WorkspaceCard`), proportional window tiles with selection glow (`WindowTile`), shortcut hint headers (`HeaderBar`), and window metadata footers (`FooterBar`).
+
+- **`js/` (Core Logic Engine)**:
+  Framework-agnostic JavaScript business logic decoupled from Qt Quick. Responsible for window geometry scaling with top menu bar compensation (`WindowModel`), 2D spatial navigation and MRU cycler (`Navigation`), FreeDesktop / PWA icon candidate resolution (`Icons`), and central configuration defaults (`Config`).
+
+- **`hypr/` (Compositor Integration)**:
+  Native compositor hooks and IPC dispatching. Contains the Hyprland keybinding submap configuration with atomic Alt-release watcher (`bindings.lua`) and the sub-millisecond UNIX domain socket client (`omalt-tab-client`).
+
+- **`tests/` (Verification Suite)**:
+  Automated Node.js regression test suite (`test_logic.js`) validating coordinate normalization math, spatial traversal algorithms, empty workspace handling, icon resolution fallbacks, and dev flag logic.
+
+- **`demo/` (Showcase Media)**:
+  High-resolution media assets including the lossless showcase animation (`demo.gif`), 60fps raw video capture (`demo.mp4`), and desktop screenshots.
 
 ---
 
