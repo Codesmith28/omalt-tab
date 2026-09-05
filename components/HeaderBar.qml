@@ -27,9 +27,9 @@ Item {
 
             Text {
                 anchors.centerIn: parent
-                text: "󱂬"
+                text: "󰕴"
                 color: Color.accent
-                font.pixelSize: Math.max(14, Style.font.title)
+                font.pixelSize: Math.max(25, Style.font.title)
                 font.family: Style.font.resolvedFamily || Style.font.family
             }
         }
