@@ -16,8 +16,8 @@ Rectangle {
 
     x: winData ? Math.max(0, Math.round(winData.normX * parent.width)) : 0
     y: winData ? Math.max(0, Math.round(winData.normY * parent.height)) : 0
-    width: winData ? Math.max(45, Math.min(parent.width - x, Math.round(winData.normW * parent.width))) : 45
-    height: winData ? Math.max(35, Math.min(parent.height - y, Math.round(winData.normH * parent.height))) : 35
+    width: winData ? Math.max(30, Math.min(parent.width - x, Math.round(winData.normW * parent.width))) : 30
+    height: winData ? Math.max(24, Math.min(parent.height - y, Math.round(winData.normH * parent.height))) : 24
 
     radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
     color: isSelected ? Util.alpha(Color.accent, 0.25) : (mouseArea.containsMouse ? Util.alpha(Color.foreground, 0.10) : Util.alpha(Color.foreground, 0.05))

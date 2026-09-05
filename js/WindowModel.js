@@ -20,6 +20,43 @@ function parseSnapshot(data, wsLetters) {
     var monitors = data.monitors || [];
     var letters = (wsLetters && wsLetters.length > 0) ? wsLetters : DEFAULT_HOME_ROW_LETTERS;
 
+/**
+ * Calculates the usable monitor bounding box by subtracting reserved areas
+ * (such as the top Omarchy menu bar or any side/bottom docks).
+ * Hyprland reserved array format: [left, top, right, bottom]
+ * @param {Object} mon - Hyprland monitor object
+ * @param {number} fallbackW - Fallback monitor width
+ * @param {number} fallbackH - Fallback monitor height
+ * @returns {Object} { x, y, width, height, aspect, reserved }
+ */
+function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
+    var m = mon || {};
+    var reserved = m.reserved || [0, 0, 0, 0];
+    var resLeft = (reserved && reserved.length > 0) ? (Number(reserved[0]) || 0) : 0;
+    var resTop = (reserved && reserved.length > 1) ? (Number(reserved[1]) || 0) : 0;
+    var resRight = (reserved && reserved.length > 2) ? (Number(reserved[2]) || 0) : 0;
+    var resBottom = (reserved && reserved.length > 3) ? (Number(reserved[3]) || 0) : 0;
+
+    var fullW = Number(m.width) || fallbackW || 1920;
+    var fullH = Number(m.height) || fallbackH || 1200;
+    var fullX = Number(m.x) || 0;
+    var fullY = Number(m.y) || 0;
+
+    var usableX = fullX + resLeft;
+    var usableY = fullY + resTop;
+    var usableW = Math.max(100, fullW - resLeft - resRight);
+    var usableH = Math.max(100, fullH - resTop - resBottom);
+
+    return {
+        x: usableX,
+        y: usableY,
+        width: usableW,
+        height: usableH,
+        aspect: (usableH > 0) ? (usableW / usableH) : (16 / 10),
+        reserved: { left: resLeft, top: resTop, right: resRight, bottom: resBottom }
+    };
+}
+
     var primaryMonitor = monitors.length > 0 ? monitors[0] : { width: 1920, height: 1200, x: 0, y: 0 };
     var monitorMap = {};
     for (var m = 0; m < monitors.length; m++) {
@@ -28,9 +65,10 @@ function parseSnapshot(data, wsLetters) {
         monitorMap[monObj.id] = monObj;
     }
 
-    var monWidth = primaryMonitor.width || 1920;
-    var monHeight = primaryMonitor.height || 1200;
-    var monitorAspect = (monHeight > 0) ? (monWidth / monHeight) : (16 / 10);
+    var primaryBounds = getUsableMonitorBounds(primaryMonitor, 1920, 1200);
+    var monWidth = primaryBounds.width;
+    var monHeight = primaryBounds.height;
+    var monitorAspect = primaryBounds.aspect;
 
     // Filter valid interactive windows
     var validClients = clients.filter(function(c) {
@@ -118,10 +156,11 @@ function parseSnapshot(data, wsLetters) {
         var curWid = curWs.id;
 
         var wsMon = monitorMap[curWs.monitor] || monitorMap[curWs.monitorID] || primaryMonitor;
-        var curMonW = wsMon.width || monWidth;
-        var curMonH = wsMon.height || monHeight;
-        var curMonX = wsMon.x || 0;
-        var curMonY = wsMon.y || 0;
+        var monBounds = getUsableMonitorBounds(wsMon, monWidth, monHeight);
+        var curMonW = monBounds.width;
+        var curMonH = monBounds.height;
+        var curMonX = monBounds.x;
+        var curMonY = monBounds.y;
 
         // Letter assignment from home row keys: "asdfghjkl;" (1 -> a, 2 -> s...)
         var letter = (curWid >= 1 && curWid <= letters.length)

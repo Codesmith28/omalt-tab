@@ -422,4 +422,56 @@ const nav = loadModule("js/Navigation.js");
   );
 }
 
+// Test 7: WindowModel.js ignores Omarchy menu bar reserved space for app outlines
+{
+  const mockSnapshotWithBar = {
+    clients: [
+      {
+        address: "0x10",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [12, 42], // 12px gap from left, 30px bar + 12px gap from top
+        size: [1896, 1146], // Maximized window in 1920x1200 with 12px gaps
+        title: "Editor",
+        class: "code",
+        focusHistoryID: 0
+      }
+    ],
+    workspaces: [{ id: 1, name: "1" }],
+    monitors: [
+      {
+        id: 0,
+        name: "eDP-2",
+        width: 1920,
+        height: 1200,
+        x: 0,
+        y: 0,
+        reserved: [0, 30, 0, 0], // Omarchy menu bar: 30px reserved at top
+        activeWorkspace: { id: 1 }
+      }
+    ]
+  };
+
+  const parsedWithBar = wm.parseSnapshot(mockSnapshotWithBar, ["a"]);
+  const win = parsedWithBar.workspaces[0].windows[0];
+
+  // Usable bounds should be: height = 1200 - 30 = 1170, y_offset = 30
+  // Window at y=42 should have normY = (42 - 30) / 1170 = 12 / 1170 (~0.01025)
+  // Instead of unadjusted 42 / 1200 = 0.035
+  const expectedNormY = (42 - 30) / (1200 - 30);
+  assert(Math.abs(win.normY - expectedNormY) < 0.0001, `normY (${win.normY}) should equal ${expectedNormY}`);
+
+  // Window height 1146 in usable height 1170 should have normH = 1146 / 1170 (~0.9795)
+  const expectedNormH = 1146 / (1200 - 30);
+  assert(Math.abs(win.normH - expectedNormH) < 0.0001, `normH (${win.normH}) should equal ${expectedNormH}`);
+
+  // monitorAspect should reflect usable workspace aspect ratio (1920 / 1170)
+  const expectedAspect = 1920 / 1170;
+  assert(Math.abs(parsedWithBar.monitorAspect - expectedAspect) < 0.0001, `monitorAspect should be usable aspect ratio`);
+
+  console.log(
+    "  ✓ WindowModel.js ignores Omarchy menu bar reserved space and normalizes window outlines to usable workspace",
+  );
+}
+
 console.log("All unit tests passed successfully!");
