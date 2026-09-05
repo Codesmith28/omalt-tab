@@ -12,6 +12,14 @@ function cycleIndex(currentIndex, delta, totalCount) {
     return (currentIndex + delta + totalCount) % totalCount;
 }
 
+function centerCx(win) {
+    return (win.normX || 0) + (win.normW || 0) / 2;
+}
+
+function centerCy(win) {
+    return (win.normY || 0) + (win.normH || 0) / 2;
+}
+
 /**
  * Finds target for 2D spatial navigation (up, down, left, right).
  * Supports moving between windows and empty workspaces.
@@ -78,8 +86,8 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
         return null;
     }
 
-    var curCx = curWin.normX !== undefined ? (curWin.normX + curWin.normW / 2) : (curWin.rx + curWin.rw / 2);
-    var curCy = curWin.normY !== undefined ? (curWin.normY + curWin.normH / 2) : (curWin.ry + curWin.rh / 2);
+    var curCx = centerCx(curWin);
+    var curCy = centerCy(curWin);
 
     if (direction === "down") {
         var bestDown = null;
@@ -87,11 +95,9 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
         for (var i = 0; i < currentWs.windows.length; i++) {
             var cand = currentWs.windows[i];
             if (cand.address === curWin.address) continue;
-            var candCy = cand.normY !== undefined ? (cand.normY + cand.normH / 2) : (cand.ry + cand.rh / 2);
-            var candCx = cand.normX !== undefined ? (cand.normX + cand.normW / 2) : (cand.rx + cand.rw / 2);
-            var dy = candCy - curCy;
+            var dy = centerCy(cand) - curCy;
             if (dy > 0.05) {
-                var score = dy * 2 + Math.abs(candCx - curCx);
+                var score = dy * 2 + Math.abs(centerCx(cand) - curCx);
                 if (score < bestDownScore) {
                     bestDownScore = score;
                     bestDown = cand;
@@ -105,7 +111,7 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
         var minCy = Infinity;
         for (var i = 0; i < currentWs.windows.length; i++) {
             var cand = currentWs.windows[i];
-            var candCy = cand.normY !== undefined ? (cand.normY + cand.normH / 2) : (cand.ry + cand.rh / 2);
+            var candCy = centerCy(cand);
             if (candCy < minCy) {
                 minCy = candCy;
                 topWin = cand;
@@ -120,11 +126,9 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
         for (var i = 0; i < currentWs.windows.length; i++) {
             var cand = currentWs.windows[i];
             if (cand.address === curWin.address) continue;
-            var candCy = cand.normY !== undefined ? (cand.normY + cand.normH / 2) : (cand.ry + cand.rh / 2);
-            var candCx = cand.normX !== undefined ? (cand.normX + cand.normW / 2) : (cand.rx + cand.rw / 2);
-            var dy = curCy - candCy;
+            var dy = curCy - centerCy(cand);
             if (dy > 0.05) {
-                var score = dy * 2 + Math.abs(candCx - curCx);
+                var score = dy * 2 + Math.abs(centerCx(cand) - curCx);
                 if (score < bestUpScore) {
                     bestUpScore = score;
                     bestUp = cand;
@@ -138,7 +142,7 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
         var maxCy = -Infinity;
         for (var i = 0; i < currentWs.windows.length; i++) {
             var cand = currentWs.windows[i];
-            var candCy = cand.normY !== undefined ? (cand.normY + cand.normH / 2) : (cand.ry + cand.rh / 2);
+            var candCy = centerCy(cand);
             if (candCy > maxCy) {
                 maxCy = candCy;
                 bottomWin = cand;
@@ -154,11 +158,9 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
         for (var i = 0; i < currentWs.windows.length; i++) {
             var cand = currentWs.windows[i];
             if (cand.address === curWin.address) continue;
-            var candCx = cand.normX !== undefined ? (cand.normX + cand.normW / 2) : (cand.rx + cand.rw / 2);
-            var candCy = cand.normY !== undefined ? (cand.normY + cand.normH / 2) : (cand.ry + cand.rh / 2);
-            var dx = candCx - curCx;
+            var dx = centerCx(cand) - curCx;
             if (dx > 0.05) {
-                var score = dx + Math.abs(candCy - curCy) * 0.8;
+                var score = dx + Math.abs(centerCy(cand) - curCy) * 0.8;
                 if (score < bestRightScore) {
                     bestRightScore = score;
                     bestRight = cand;
@@ -175,9 +177,7 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
             var minScore = Infinity;
             for (var k = 0; k < nextWs.windows.length; k++) {
                 var cand = nextWs.windows[k];
-                var candX = cand.normX !== undefined ? cand.normX : (cand.rx / 280);
-                var candCy = cand.normY !== undefined ? (cand.normY + cand.normH / 2) : (cand.ry + cand.rh / 2);
-                var score = candX * 2 + Math.abs(candCy - curCy);
+                var score = (cand.normX || 0) * 2 + Math.abs(centerCy(cand) - curCy);
                 if (score < minScore) {
                     minScore = score;
                     bestNextWin = cand;
@@ -194,11 +194,9 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
         for (var i = 0; i < currentWs.windows.length; i++) {
             var cand = currentWs.windows[i];
             if (cand.address === curWin.address) continue;
-            var candCx = cand.normX !== undefined ? (cand.normX + cand.normW / 2) : (cand.rx + cand.rw / 2);
-            var candCy = cand.normY !== undefined ? (cand.normY + cand.normH / 2) : (cand.ry + cand.rh / 2);
-            var dx = curCx - candCx;
+            var dx = curCx - centerCx(cand);
             if (dx > 0.05) {
-                var score = dx + Math.abs(candCy - curCy) * 0.8;
+                var score = dx + Math.abs(centerCy(cand) - curCy) * 0.8;
                 if (score < bestLeftScore) {
                     bestLeftScore = score;
                     bestLeft = cand;
@@ -215,9 +213,8 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
             var minScore = Infinity;
             for (var k = 0; k < prevWs.windows.length; k++) {
                 var cand = prevWs.windows[k];
-                var candRight = cand.normX !== undefined ? (cand.normX + cand.normW) : ((cand.rx + cand.rw) / 280);
-                var candCy = cand.normY !== undefined ? (cand.normY + cand.normH / 2) : (cand.ry + cand.rh / 2);
-                var score = (1.0 - candRight) * 2 + Math.abs(candCy - curCy);
+                var candRight = (cand.normX || 0) + (cand.normW || 0);
+                var score = (1.0 - candRight) * 2 + Math.abs(centerCy(cand) - curCy);
                 if (score < minScore) {
                     minScore = score;
                     bestPrevWin = cand;

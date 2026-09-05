@@ -112,8 +112,6 @@ function parseSnapshot(data, wsLetters) {
     visibleWorkspaces.sort(function(a, b) { return a.id - b.id; });
 
     var processedWorkspaces = [];
-    var vpWidth = 280;
-    var vpHeight = Math.round(vpWidth / monitorAspect);
 
     for (var wIdx = 0; wIdx < visibleWorkspaces.length; wIdx++) {
         var curWs = visibleWorkspaces[wIdx];
@@ -124,9 +122,6 @@ function parseSnapshot(data, wsLetters) {
         var curMonH = wsMon.height || monHeight;
         var curMonX = wsMon.x || 0;
         var curMonY = wsMon.y || 0;
-
-        var scaleX = vpWidth / curMonW;
-        var scaleY = vpHeight / curMonH;
 
         // Letter assignment from home row keys: "asdfghjkl;" (1 -> a, 2 -> s...)
         var letter = (curWid >= 1 && curWid <= letters.length)
@@ -153,11 +148,6 @@ function parseSnapshot(data, wsLetters) {
             var normW = Math.max(0.05, Math.min(1 - normX, win.size[0] / curMonW));
             var normH = Math.max(0.05, Math.min(1 - normY, win.size[1] / curMonH));
 
-            var rx = Math.max(0, (win.at[0] - curMonX) * scaleX);
-            var ry = Math.max(0, (win.at[1] - curMonY) * scaleY);
-            var rw = Math.max(65, Math.min(vpWidth - rx, win.size[0] * scaleX));
-            var rh = Math.max(48, Math.min(vpHeight - ry, win.size[1] * scaleY));
-
             processedWindows.push({
                 address: win.address,
                 title: win.title || win.initialTitle || win.class || "Window",
@@ -171,11 +161,7 @@ function parseSnapshot(data, wsLetters) {
                 normX: normX,
                 normY: normY,
                 normW: normW,
-                normH: normH,
-                rx: rx,
-                ry: ry,
-                rw: rw,
-                rh: rh
+                normH: normH
             });
         }
 

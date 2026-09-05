@@ -2,16 +2,18 @@ import QtQuick
 import Quickshell
 import qs.Commons
 import qs.Ui
+import "../js/Icons.js" as Icons
 
 Rectangle {
     id: root
 
     property var selectedClientData: null
+    property var appLibrary: null
 
-    implicitHeight: Math.max(52, Style.space(52))
-    implicitWidth: 280
+    implicitHeight: Math.max(54, Style.space(56))
+    implicitWidth: 320
     radius: Math.max(4, Math.round(Style.cornerRadius * 0.5))
-    color: Util.alpha(Color.background, 0.7)
+    color: Util.alpha(Color.background, 0.75)
     border.width: 1
     border.color: Util.alpha(Color.foreground, 0.15)
 
@@ -20,144 +22,155 @@ Rectangle {
         anchors.leftMargin: Style.spacing.md
         anchors.rightMargin: Style.spacing.md
 
-        // Left: Icon + Title + Metadata
-        Row {
+        // Left: Application Icon Container
+        Item {
+            id: iconContainer
             anchors.left: parent.left
-            anchors.right: statusHints.visible ? statusHints.left : parent.right
-            anchors.rightMargin: statusHints.visible ? Style.spacing.md : 0
             anchors.verticalCenter: parent.verticalCenter
-            spacing: Style.spacing.md
+            width: Math.max(34, Style.space(36))
+            height: width
 
+            // 1. Native System App Icon (for windows)
             Image {
                 id: appIcon
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.max(26, Style.space(28))
-                height: width
-                source: {
-                    if (!root.selectedClientData || root.selectedClientData.isWorkspace) return "";
-                    var cls = root.selectedClientData.clientClass || "";
-                    var initCls = root.selectedClientData.initialClass || "";
-                    var candidates = [
-                        cls,
-                        initCls,
-                        cls.toLowerCase(),
-                        cls.replace("-browser", "-desktop"),
-                        cls.replace("-browser", ""),
-                        cls.includes(".") ? cls.split(".").pop() : ""
-                    ];
-                    for (var i = 0; i < candidates.length; i++) {
-                        if (candidates[i] && Quickshell.hasThemeIcon(candidates[i])) {
-                            return Quickshell.iconPath(candidates[i]);
-                        }
-                    }
-                    for (var j = 0; j < candidates.length; j++) {
-                        if (candidates[j]) {
-                            var p = Quickshell.iconPath(candidates[j]);
-                            if (p) return p;
-                        }
-                    }
-                    return "";
-                }
+                anchors.fill: parent
+                visible: root.selectedClientData && !root.selectedClientData.isWorkspace
+                source: (root.selectedClientData && !root.selectedClientData.isWorkspace)
+                    ? Icons.resolveIcon(Quickshell, DesktopEntries, root.selectedClientData.clientClass, root.selectedClientData.initialClass, root.appLibrary)
+                    : ""
+                sourceSize.width: 64
+                sourceSize.height: 64
                 fillMode: Image.PreserveAspectFit
-                visible: status === Image.Ready
+                smooth: true
             }
 
+            // 2. Workspace icon (only when an empty workspace itself is selected)
             Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.max(26, Style.space(28))
-                height: width
+                anchors.fill: parent
+                visible: root.selectedClientData && root.selectedClientData.isWorkspace
                 radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
-                color: Util.alpha(Color.foreground, 0.08)
+                color: Util.alpha(Color.accent, 0.15)
                 border.width: 1
-                border.color: Util.alpha(Color.foreground, 0.2)
-                visible: !appIcon.visible
+                border.color: Util.alpha(Color.accent, 0.3)
 
                 Text {
                     anchors.centerIn: parent
-                    text: {
-                        if (root.selectedClientData && root.selectedClientData.isWorkspace) {
-                            return root.selectedClientData.wsLetter || "WS";
-                        }
-                        if (root.selectedClientData && root.selectedClientData.clientClass) {
-                            return root.selectedClientData.clientClass.substring(0, 1).toUpperCase();
-                        }
-                        return "⇄";
-                    }
+                    text: "󰨇"
                     color: Color.accent
-                    font.bold: true
-                    font.pixelSize: Style.font.caption
-                    font.family: Style.font.family
-                }
-            }
-
-            Column {
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 2
-                width: parent.width - 40
-
-                Text {
-                    text: {
-                        if (!root.selectedClientData) return "No selection";
-                        if (root.selectedClientData.isWorkspace) {
-                            return root.selectedClientData.title || ("Workspace " + root.selectedClientData.workspaceId);
-                        }
-                        return root.selectedClientData.title || "Window";
-                    }
-                    color: Color.foreground
-                    font.family: Style.font.menuFamily
-                    font.pixelSize: Style.font.body
-                    font.bold: true
-                    elide: Text.ElideRight
-                    width: parent.width
-                }
-
-                Row {
-                    spacing: Style.spacing.sm
-                    Text {
-                        text: {
-                            if (!root.selectedClientData) return "";
-                            if (root.selectedClientData.isWorkspace) {
-                                return "Workspace [" + (root.selectedClientData.wsLetter || "") + "]  •  Empty workspace  •  Release Alt to switch";
-                            }
-                            return "Workspace [" + (root.selectedClientData.wsLetter || "1") + "]  •  Window #" + (root.selectedClientData.wsIndex || "1") + "  •  " + (root.selectedClientData.clientClass || "");
-                        }
-                        color: Color.accent
-                        font.family: Style.font.menuFamily
-                        font.pixelSize: Style.font.caption
-                        elide: Text.ElideRight
-                    }
+                    font.pixelSize: Math.max(18, Style.font.title)
+                    font.family: Style.font.resolvedFamily || Style.font.family
                 }
             }
         }
 
-        // Right: Commit / Cancel Hints
+        // Right: Status & Confirmation Hints (Strictly anchored to right)
         Row {
             id: statusHints
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: Style.spacing.md
-            visible: root.width >= 430
+            visible: root.width >= 460
 
             Text {
                 text: "Release Alt to switch"
                 color: Color.muted
-                font.family: Style.font.menuFamily
+                font.family: Style.font.resolvedFamily || Style.font.family
                 font.pixelSize: Style.font.caption
                 font.italic: true
             }
 
             Rectangle {
                 width: 1
-                height: 16
-                color: Util.alpha(Color.foreground, 0.15)
+                height: 14
+                color: Util.alpha(Color.foreground, 0.18)
                 anchors.verticalCenter: parent.verticalCenter
             }
 
             Text {
                 text: "Esc: Cancel"
                 color: Color.muted
-                font.family: Style.font.menuFamily
+                font.family: Style.font.resolvedFamily || Style.font.family
                 font.pixelSize: Style.font.caption
+            }
+        }
+
+        // Center / Middle: Title and Clean Metadata Badges (Strictly bounded between icon and hints)
+        Column {
+            id: textColumn
+            anchors.left: iconContainer.right
+            anchors.leftMargin: Style.spacing.md
+            anchors.right: statusHints.visible ? statusHints.left : parent.right
+            anchors.rightMargin: statusHints.visible ? Style.spacing.md : 0
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 3
+            clip: true
+
+            // Window Title
+            Text {
+                id: windowTitle
+                width: parent.width
+                text: {
+                    if (!root.selectedClientData) return "No window selected";
+                    if (root.selectedClientData.isWorkspace) {
+                        return root.selectedClientData.title || ("Workspace " + root.selectedClientData.workspaceId);
+                    }
+                    return root.selectedClientData.title || "Window";
+                }
+                color: Color.foreground
+                font.family: Style.font.resolvedFamily || Style.font.family
+                font.pixelSize: Style.font.body
+                font.bold: true
+                elide: Text.ElideRight
+            }
+
+            // Metadata Badges Row (Only Workspace and Window index)
+            Row {
+                spacing: Style.spacing.sm
+
+                // Workspace Badge
+                Rectangle {
+                    height: Math.max(18, Style.space(19))
+                    width: txtWs.implicitWidth + 12
+                    radius: Math.max(2, Math.round(Style.cornerRadius * 0.25))
+                    color: Util.alpha(Color.accent, 0.12)
+                    border.width: 1
+                    border.color: Util.alpha(Color.accent, 0.35)
+
+                    Text {
+                        id: txtWs
+                        anchors.centerIn: parent
+                        text: {
+                            if (!root.selectedClientData) return "WS";
+                            var letter = root.selectedClientData.wsLetter || "";
+                            var wsId = root.selectedClientData.workspaceId || "";
+                            return "WS [" + letter + "] " + wsId;
+                        }
+                        color: Color.accent
+                        font.bold: true
+                        font.family: Style.font.resolvedFamily || Style.font.family
+                        font.pixelSize: Style.font.caption
+                    }
+                }
+
+                // Window Index Badge
+                Rectangle {
+                    height: Math.max(18, Style.space(19))
+                    width: txtIdx.implicitWidth + 12
+                    radius: Math.max(2, Math.round(Style.cornerRadius * 0.25))
+                    color: Util.alpha(Color.foreground, 0.08)
+                    border.width: 1
+                    border.color: Util.alpha(Color.foreground, 0.2)
+                    visible: root.selectedClientData && !root.selectedClientData.isWorkspace
+
+                    Text {
+                        id: txtIdx
+                        anchors.centerIn: parent
+                        text: "#" + ((root.selectedClientData && root.selectedClientData.wsIndex) || "1")
+                        color: Color.foreground
+                        font.family: Style.font.resolvedFamily || Style.font.family
+                        font.pixelSize: Style.font.caption
+                    }
+                }
             }
         }
     }

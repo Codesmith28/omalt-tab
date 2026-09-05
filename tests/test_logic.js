@@ -4,11 +4,13 @@ const vm = require("vm");
 const assert = require("assert");
 
 function loadModule(filePath) {
-    const code = fs.readFileSync(filePath, "utf8").replace(/^\s*\.pragma\s+library\s*;?/m, "");
-    const context = { console, Math, parseInt, parseFloat, Array, Object };
-    vm.createContext(context);
-    vm.runInContext(code, context);
-    return context;
+  const code = fs
+    .readFileSync(filePath, "utf8")
+    .replace(/^\s*\.pragma\s+library\s*;?/m, "");
+  const context = { console, Math, parseInt, parseFloat, Array, Object };
+  vm.createContext(context);
+  vm.runInContext(code, context);
+  return context;
 }
 
 console.log("--> Testing WindowModel.js and Navigation.js...");
@@ -18,113 +20,324 @@ const nav = loadModule("js/Navigation.js");
 
 // Test 1: parseSnapshot creates cards for populated and in-between empty workspaces
 {
-    const mockData = {
-        clients: [
-            { address: "0x1", mapped: true, workspace: { id: 1 }, at: [100, 100], size: [800, 600], title: "Kitty", class: "kitty", focusHistoryID: 0 },
-            { address: "0x3", mapped: true, workspace: { id: 3 }, at: [200, 200], size: [800, 600], title: "Code", class: "code", focusHistoryID: 1 }
-        ],
-        workspaces: [
-            { id: 1, name: "1" },
-            { id: 3, name: "3" }
-        ],
-        monitors: [
-            { id: 0, name: "eDP-1", width: 1920, height: 1080, x: 0, y: 0, activeWorkspace: { id: 1 } }
-        ]
-    };
+  const mockData = {
+    clients: [
+      {
+        address: "0x1",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [100, 100],
+        size: [800, 600],
+        title: "Kitty",
+        class: "kitty",
+        focusHistoryID: 0,
+      },
+      {
+        address: "0x3",
+        mapped: true,
+        workspace: { id: 3 },
+        at: [200, 200],
+        size: [800, 600],
+        title: "Code",
+        class: "code",
+        focusHistoryID: 1,
+      },
+    ],
+    workspaces: [
+      { id: 1, name: "1" },
+      { id: 3, name: "3" },
+    ],
+    monitors: [
+      {
+        id: 0,
+        name: "eDP-1",
+        width: 1920,
+        height: 1080,
+        x: 0,
+        y: 0,
+        activeWorkspace: { id: 1 },
+      },
+    ],
+  };
 
-    const parsed = wm.parseSnapshot(mockData, ["a", "s", "d", "f", "g"]);
-    assert.strictEqual(parsed.workspaces.length, 3, "Expected 3 workspaces (1, 2, 3)");
-    assert.strictEqual(parsed.workspaces[0].id, 1);
-    assert.strictEqual(parsed.workspaces[1].id, 2);
-    assert.strictEqual(parsed.workspaces[2].id, 3);
+  const parsed = wm.parseSnapshot(mockData, ["a", "s", "d", "f", "g"]);
+  assert.strictEqual(
+    parsed.workspaces.length,
+    3,
+    "Expected 3 workspaces (1, 2, 3)",
+  );
+  assert.strictEqual(parsed.workspaces[0].id, 1);
+  assert.strictEqual(parsed.workspaces[1].id, 2);
+  assert.strictEqual(parsed.workspaces[2].id, 3);
 
-    // Workspace 2 must be marked empty
-    assert.strictEqual(parsed.workspaces[1].isEmpty, true, "Workspace 2 should be empty");
-    assert.strictEqual(parsed.workspaces[1].letter, "S", "Workspace 2 letter should be S");
-    assert.strictEqual(parsed.workspaces[1].windows.length, 0, "Workspace 2 should have 0 windows");
+  // Workspace 2 must be marked empty
+  assert.strictEqual(
+    parsed.workspaces[1].isEmpty,
+    true,
+    "Workspace 2 should be empty",
+  );
+  assert.strictEqual(
+    parsed.workspaces[1].letter,
+    "S",
+    "Workspace 2 letter should be S",
+  );
+  assert.strictEqual(
+    parsed.workspaces[1].windows.length,
+    0,
+    "Workspace 2 should have 0 windows",
+  );
 
-    // Workspace 1 and 3 should have windows
-    assert.strictEqual(parsed.workspaces[0].isEmpty, false);
-    assert.strictEqual(parsed.workspaces[0].letter, "A");
-    assert.strictEqual(parsed.workspaces[2].isEmpty, false);
-    assert.strictEqual(parsed.workspaces[2].letter, "D");
+  // Workspace 1 and 3 should have windows
+  assert.strictEqual(parsed.workspaces[0].isEmpty, false);
+  assert.strictEqual(parsed.workspaces[0].letter, "A");
+  assert.strictEqual(parsed.workspaces[2].isEmpty, false);
+  assert.strictEqual(parsed.workspaces[2].letter, "D");
 
-    console.log("  ✓ parseSnapshot handles empty in-between workspaces correctly");
+  console.log(
+    "  ✓ parseSnapshot handles empty in-between workspaces correctly",
+  );
 }
 
 // Test 2: Navigation to empty workspace via home-row letter
 {
-    const mockData = {
-        clients: [
-            { address: "0x1", mapped: true, workspace: { id: 1 }, at: [100, 100], size: [800, 600], title: "Kitty", class: "kitty", focusHistoryID: 0 },
-            { address: "0x3", mapped: true, workspace: { id: 3 }, at: [200, 200], size: [800, 600], title: "Code", class: "code", focusHistoryID: 1 }
-        ],
-        workspaces: [{ id: 1, name: "1" }, { id: 3, name: "3" }],
-        monitors: [{ id: 0, name: "eDP-1", width: 1920, height: 1080, x: 0, y: 0, activeWorkspace: { id: 1 } }]
-    };
+  const mockData = {
+    clients: [
+      {
+        address: "0x1",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [100, 100],
+        size: [800, 600],
+        title: "Kitty",
+        class: "kitty",
+        focusHistoryID: 0,
+      },
+      {
+        address: "0x3",
+        mapped: true,
+        workspace: { id: 3 },
+        at: [200, 200],
+        size: [800, 600],
+        title: "Code",
+        class: "code",
+        focusHistoryID: 1,
+      },
+    ],
+    workspaces: [
+      { id: 1, name: "1" },
+      { id: 3, name: "3" },
+    ],
+    monitors: [
+      {
+        id: 0,
+        name: "eDP-1",
+        width: 1920,
+        height: 1080,
+        x: 0,
+        y: 0,
+        activeWorkspace: { id: 1 },
+      },
+    ],
+  };
 
-    const parsed = wm.parseSnapshot(mockData, ["a", "s", "d"]);
-    
-    // Jump to 's' (workspace 2, empty)
-    const jumpS = nav.findWorkspaceJump(parsed.workspaces, "s");
-    assert.strictEqual(jumpS.wsId, 2);
-    assert.strictEqual(jumpS.empty, true);
-    assert.strictEqual(jumpS.address, null);
+  const parsed = wm.parseSnapshot(mockData, ["a", "s", "d"]);
 
-    // Jump to 'd' (workspace 3, populated)
-    const jumpD = nav.findWorkspaceJump(parsed.workspaces, "d");
-    assert.strictEqual(jumpD.wsId, 3);
-    assert.strictEqual(jumpD.empty, false);
-    assert.strictEqual(jumpD.address, "0x3");
+  // Jump to 's' (workspace 2, empty)
+  const jumpS = nav.findWorkspaceJump(parsed.workspaces, "s");
+  assert.strictEqual(jumpS.wsId, 2);
+  assert.strictEqual(jumpS.empty, true);
+  assert.strictEqual(jumpS.address, null);
 
-    console.log("  ✓ findWorkspaceJump correctly resolves both populated and empty workspaces");
+  // Jump to 'd' (workspace 3, populated)
+  const jumpD = nav.findWorkspaceJump(parsed.workspaces, "d");
+  assert.strictEqual(jumpD.wsId, 3);
+  assert.strictEqual(jumpD.empty, false);
+  assert.strictEqual(jumpD.address, "0x3");
+
+  console.log(
+    "  ✓ findWorkspaceJump correctly resolves both populated and empty workspaces",
+  );
 }
 
 // Test 3: 2D Spatial navigation across empty workspaces
 {
-    const mockData = {
-        clients: [
-            { address: "0x1", mapped: true, workspace: { id: 1 }, at: [100, 100], size: [800, 600], title: "Kitty", class: "kitty", focusHistoryID: 0 },
-            { address: "0x3", mapped: true, workspace: { id: 3 }, at: [200, 200], size: [800, 600], title: "Code", class: "code", focusHistoryID: 1 }
-        ],
-        workspaces: [{ id: 1, name: "1" }, { id: 3, name: "3" }],
-        monitors: [{ id: 0, name: "eDP-1", width: 1920, height: 1080, x: 0, y: 0, activeWorkspace: { id: 1 } }]
-    };
+  const mockData = {
+    clients: [
+      {
+        address: "0x1",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [100, 100],
+        size: [800, 600],
+        title: "Kitty",
+        class: "kitty",
+        focusHistoryID: 0,
+      },
+      {
+        address: "0x3",
+        mapped: true,
+        workspace: { id: 3 },
+        at: [200, 200],
+        size: [800, 600],
+        title: "Code",
+        class: "code",
+        focusHistoryID: 1,
+      },
+    ],
+    workspaces: [
+      { id: 1, name: "1" },
+      { id: 3, name: "3" },
+    ],
+    monitors: [
+      {
+        id: 0,
+        name: "eDP-1",
+        width: 1920,
+        height: 1080,
+        x: 0,
+        y: 0,
+        activeWorkspace: { id: 1 },
+      },
+    ],
+  };
 
-    const parsed = wm.parseSnapshot(mockData, ["a", "s", "d"]);
+  const parsed = wm.parseSnapshot(mockData, ["a", "s", "d"]);
 
-    // Move right from 0x1 in ws 1 -> should go to ws 2 (empty)
-    const targetRight = nav.findSpatialTarget(parsed.workspaces, "0x1", 1, "right");
-    assert(targetRight !== null, "Spatial target should exist");
-    assert.strictEqual(targetRight.wsId, 2);
-    assert.strictEqual(targetRight.isWorkspace, true);
+  // Move right from 0x1 in ws 1 -> should go to ws 2 (empty)
+  const targetRight = nav.findSpatialTarget(
+    parsed.workspaces,
+    "0x1",
+    1,
+    "right",
+  );
+  assert(targetRight !== null, "Spatial target should exist");
+  assert.strictEqual(targetRight.wsId, 2);
+  assert.strictEqual(targetRight.isWorkspace, true);
 
-    // Move right again from ws 2 -> should go to 0x3 in ws 3
-    const targetRight2 = nav.findSpatialTarget(parsed.workspaces, null, 2, "right");
-    assert(targetRight2 !== null);
-    assert.strictEqual(targetRight2.wsId, 3);
-    assert.strictEqual(targetRight2.address, "0x3");
+  // Move right again from ws 2 -> should go to 0x3 in ws 3
+  const targetRight2 = nav.findSpatialTarget(
+    parsed.workspaces,
+    null,
+    2,
+    "right",
+  );
+  assert(targetRight2 !== null);
+  assert.strictEqual(targetRight2.wsId, 3);
+  assert.strictEqual(targetRight2.address, "0x3");
 
-    console.log("  ✓ findSpatialTarget smoothly navigates across empty workspaces");
+  console.log(
+    "  ✓ findSpatialTarget smoothly navigates across empty workspaces",
+  );
 }
 
 // Test 4: Window index jumping (1..9)
 {
-    const mockWs = [
-        {
-            id: 1,
-            isEmpty: false,
-            windows: [
-                { address: "0x1", wsIndex: 1 },
-                { address: "0x2", wsIndex: 2 }
-            ]
-        }
-    ];
+  const mockWs = [
+    {
+      id: 1,
+      isEmpty: false,
+      windows: [
+        { address: "0x1", wsIndex: 1 },
+        { address: "0x2", wsIndex: 2 },
+      ],
+    },
+  ];
 
-    const jumpWin = nav.findWindowJump(mockWs, 1, 2);
-    assert.strictEqual(jumpWin, "0x2");
+  const jumpWin = nav.findWindowJump(mockWs, 1, 2);
+  assert.strictEqual(jumpWin, "0x2");
 
-    console.log("  ✓ findWindowJump jumps to specific window index");
+  console.log("  ✓ findWindowJump jumps to specific window index");
+}
+
+// Test 5: Icons.js dynamic candidate lookup and fallback icons
+{
+  const icons = loadModule("js/Icons.js");
+
+  // Dynamic candidate decomposition (reverse-DNS)
+  const ghosttyCands = icons.getNativeIconCandidates(
+    "com.mitchellh.ghostty",
+    "com.mitchellh.ghostty",
+  );
+  assert(
+    ghosttyCands.includes("ghostty"),
+    "Should include ghostty candidate via reverse-DNS",
+  );
+  assert(
+    ghosttyCands.includes("com.mitchellh.ghostty"),
+    "Should include full app ID",
+  );
+
+  // Dynamic candidate decomposition (suffix stripping)
+  const braveCands = icons.getNativeIconCandidates(
+    "brave-browser",
+    "brave-browser",
+  );
+  assert(braveCands.includes("brave"), "Should strip -browser suffix");
+  assert(
+    braveCands.includes("brave-browser"),
+    "Should include original candidate",
+  );
+
+  // Case normalization
+  const codeCands = icons.getNativeIconCandidates("Code", "");
+  assert(codeCands.includes("code"), "Should include lowercased candidate");
+
+  // Fallbacks
+  assert.strictEqual(
+    icons.getFallbackIcon(false),
+    "",
+    "Window fallback should be window icon",
+  );
+  assert.strictEqual(
+    icons.getFallbackIcon(true),
+    "󰨇",
+    "Workspace fallback should be workspace icon",
+  );
+
+  // resolveIcon with mock Quickshell and DesktopEntries
+  const mockQuickshell = {
+    iconPath: function(name) {
+      if (name === "ghostty") return "/usr/share/icons/hicolor/scalable/apps/ghostty.svg";
+      if (name === "brave-desktop") return "image://icon/brave-desktop";
+      if (name === "vscode") return "image://icon/vscode";
+      if (name === "application-x-executable") return "image://icon/application-x-executable";
+      return "";
+    }
+  };
+
+  const mockDesktopEntries = {
+    byId: function(id) {
+      if (id === "brave-browser") return { id: "brave-browser", icon: "brave-desktop" };
+      if (id === "code") return { id: "code", icon: "vscode" };
+      return null;
+    },
+    applications: {
+      values: [
+        { id: "brave-browser", icon: "brave-desktop", startupClass: "brave-browser" },
+        { id: "code", icon: "vscode", startupClass: "Code" }
+      ]
+    }
+  };
+
+  // 1. Resolve Brave via DesktopEntries byId
+  const braveRes = icons.resolveIcon(mockQuickshell, mockDesktopEntries, "brave-browser", "brave-browser");
+  assert.strictEqual(braveRes, "image://icon/brave-desktop", "Should resolve Brave to brave-desktop via desktop entry");
+
+  // 2. Resolve VSCode via DesktopEntries byId
+  const codeRes = icons.resolveIcon(mockQuickshell, mockDesktopEntries, "code", "code");
+  assert.strictEqual(codeRes, "image://icon/vscode", "Should resolve VSCode to vscode via desktop entry");
+
+  // 3. Resolve Ghostty via theme candidate lookup
+  const ghosttyRes = icons.resolveIcon(mockQuickshell, mockDesktopEntries, "com.mitchellh.ghostty", "com.mitchellh.ghostty");
+  assert.strictEqual(ghosttyRes, "/usr/share/icons/hicolor/scalable/apps/ghostty.svg");
+
+  // 4. Fallback for completely unknown app to system application-x-executable
+  const unknownRes = icons.resolveIcon(mockQuickshell, mockDesktopEntries, "unknown-app-xyz", "");
+  assert.strictEqual(unknownRes, "image://icon/application-x-executable", "Should fallback to application-x-executable");
+
+  console.log(
+    "  ✓ Icons.js dynamically generates FreeDesktop candidates, checks DesktopEntries, and resolves system app icons",
+  );
 }
 
 console.log("All unit tests passed successfully!");

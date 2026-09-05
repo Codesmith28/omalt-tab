@@ -8,6 +8,7 @@ import qs.Ui
 import "components"
 import "js/WindowModel.js" as WindowModel
 import "js/Navigation.js" as Navigation
+import "js/Icons.js" as Icons
 
 Item {
     id: root
@@ -16,17 +17,21 @@ Item {
     property string omarchyPath: Quickshell.env("OMARCHY_PATH")
     property var shell: null
     property var manifest: null
+    readonly property var appLibrary: root.shell ? root.shell.appLibrary : null
 
     // Omarchy Theme Integration
     property color background: Color.menu.background
-    property color foreground: Color.menu.text
-    property color border: Color.menu.border
-    property var borderSpec: Border.surfaceSpec("menu", "border", border, Math.max(1, Style.space(2)))
     property color scrim: Color.menu.scrim
-    property color selectedBackground: Color.menu.selectedBackground
-    property color selectedText: Color.menu.selectedText
+    readonly property var borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, Math.max(1, Style.space(2)))
     readonly property int cornerRadius: Style.cornerRadius
-    property string fontFamily: Style.font.menuFamily
+
+    // Sync icon cache with system desktop entries
+    Connections {
+        target: DesktopEntries.applications
+        function onValuesChanged() {
+            Icons.clearIconCache();
+        }
+    }
 
     // Switcher state
     property bool opened: false
@@ -98,25 +103,10 @@ Item {
         else root.cycle(-1);
     }
 
-    function left() {
-        if (!root.opened) root.openWithOffset(1);
-        root.navigateDirection("left");
-    }
-
-    function right() {
-        if (!root.opened) root.openWithOffset(1);
-        root.navigateDirection("right");
-    }
-
-    function up() {
-        if (!root.opened) root.openWithOffset(1);
-        root.navigateDirection("up");
-    }
-
-    function down() {
-        if (!root.opened) root.openWithOffset(1);
-        root.navigateDirection("down");
-    }
+    function left()  { root.navigateDirection("left"); }
+    function right() { root.navigateDirection("right"); }
+    function up()    { root.navigateDirection("up"); }
+    function down()  { root.navigateDirection("down"); }
 
     function handleCommand(cmd) {
         var parts = cmd.trim().split(" ");
@@ -128,7 +118,6 @@ Item {
         } else if (action === "prev") {
             root.prev();
         } else if (action === "left" || action === "right" || action === "up" || action === "down") {
-            if (!root.opened) root.openWithOffset(1);
             root.navigateDirection(action);
         } else if (action === "commit") {
             root.commit();
@@ -180,6 +169,25 @@ Item {
         }
     }
 
+    // Keep snapshot cache fresh in background whenever active window or toplevel list changes
+    Connections {
+        target: ToplevelManager
+        function onActiveToplevelChanged() {
+            if (!root.opened && !snapshotFetcher.running) {
+                snapshotFetcher.running = true;
+            }
+        }
+    }
+
+    Connections {
+        target: ToplevelManager.toplevels
+        function onValuesChanged() {
+            if (!root.opened && !snapshotFetcher.running) {
+                snapshotFetcher.running = true;
+            }
+        }
+    }
+
     // Hyprland Atomic Focus Dispatcher
     Process {
         id: focusDispatcher
@@ -203,10 +211,8 @@ Item {
     function openWithOffset(offset) {
         root.pendingCommit = false;
         root.pendingOffset = offset;
-        root.isOpening = true;
         root.selectedWorkspaceId = -1;
         if (root.mruList && root.mruList.length > 0) {
-            // Cache is warm: display immediately
             root.isOpening = false;
             if (root.mruList.length === 1) {
                 root.selectedIndex = 0;
@@ -218,7 +224,7 @@ Item {
             snapshotFetcher.running = false;
             snapshotFetcher.running = true;
         } else {
-            // Cold start: fetch snapshot first
+            root.isOpening = true;
             snapshotFetcher.running = false;
             snapshotFetcher.running = true;
         }
@@ -268,6 +274,21 @@ Item {
             root.updateSelectionFromIndex();
             root.opened = true;
         } else if (root.opened) {
+            // Already opened: preserve current selected address if still valid
+            if (root.selectedAddress) {
+                var foundIdx = -1;
+                for (var i = 0; i < flatMru.length; i++) {
+                    if (flatMru[i].address === root.selectedAddress) {
+                        foundIdx = i;
+                        break;
+                    }
+                }
+                if (foundIdx !== -1) {
+                    root.selectedIndex = foundIdx;
+                } else if (root.selectedIndex >= flatMru.length) {
+                    root.selectedIndex = flatMru.length - 1;
+                }
+            }
             root.updateSelectionFromIndex();
         }
     }
@@ -370,6 +391,7 @@ Item {
     }
 
     function navigateDirection(dir) {
+        if (!root.opened) root.openWithOffset(1);
         var target = Navigation.findSpatialTarget(root.workspacesData, root.selectedAddress, root.selectedWorkspaceId, dir);
         if (target) {
             if (target.isWorkspace || !target.address) {
@@ -484,71 +506,39 @@ Item {
             Keys.onPressed: event => {
                 if (event.key === Qt.Key_Escape) {
                     root.cancel();
-                    event.accepted = true;
                 } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
                     root.commit();
-                    event.accepted = true;
-                } else if (event.key === Qt.Key_Tab) {
-                    if (event.modifiers & Qt.ShiftModifier) root.cycle(-1);
-                    else root.cycle(1);
-                    event.accepted = true;
-                } else if (event.key === Qt.Key_Backtab) {
-                    root.cycle(-1);
-                    event.accepted = true;
+                } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
+                    root.cycle((event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)) ? -1 : 1);
                 } else if (event.key === Qt.Key_Left) {
                     root.navigateDirection("left");
-                    event.accepted = true;
                 } else if (event.key === Qt.Key_Right) {
                     root.navigateDirection("right");
-                    event.accepted = true;
                 } else if (event.key === Qt.Key_Up) {
                     root.navigateDirection("up");
-                    event.accepted = true;
                 } else if (event.key === Qt.Key_Down) {
                     root.navigateDirection("down");
-                    event.accepted = true;
                 } else if (event.key === Qt.Key_Home) {
                     if (root.mruList.length > 0) {
                         root.selectedIndex = 0;
                         root.updateSelectionFromIndex();
                     }
-                    event.accepted = true;
                 } else if (event.key === Qt.Key_End) {
                     if (root.mruList.length > 0) {
                         root.selectedIndex = root.mruList.length - 1;
                         root.updateSelectionFromIndex();
                     }
-                    event.accepted = true;
-                } else {
-                    var wsMap = {
-                        [Qt.Key_A]: "a",
-                        [Qt.Key_S]: "s",
-                        [Qt.Key_D]: "d",
-                        [Qt.Key_F]: "f",
-                        [Qt.Key_G]: "g",
-                        [Qt.Key_H]: "h",
-                        [Qt.Key_J]: "j",
-                        [Qt.Key_K]: "k",
-                        [Qt.Key_L]: "l",
-                        [Qt.Key_Semicolon]: ";"
-                    };
-                    if (wsMap[event.key]) {
-                        root.jumpWorkspace(wsMap[event.key]);
-                        event.accepted = true;
-                    } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
-                        root.jumpWindow(event.key - Qt.Key_0);
-                        event.accepted = true;
-                    } else if (event.text && event.text.length === 1) {
-                        var keyText = event.text.toLowerCase();
-                        if ("asdfghjkl;".indexOf(keyText) !== -1) {
-                            root.jumpWorkspace(keyText);
-                            event.accepted = true;
-                        } else if (keyText >= '1' && keyText <= '9') {
-                            root.jumpWindow(parseInt(keyText));
-                            event.accepted = true;
-                        }
+                } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
+                    root.jumpWindow(event.key - Qt.Key_0);
+                } else if (event.text && event.text.length === 1) {
+                    var ch = event.text.toLowerCase();
+                    if ("asdfghjkl;".indexOf(ch) !== -1) {
+                        root.jumpWorkspace(ch);
+                    } else if (ch >= '1' && ch <= '9') {
+                        root.jumpWindow(parseInt(ch));
                     }
                 }
+                event.accepted = true;
             }
 
             Keys.onReleased: event => {
@@ -603,18 +593,6 @@ Item {
             Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
             Behavior on height { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
-            // Outer Shadow / Glow
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: -4
-                radius: parent.radius + 3
-                color: "transparent"
-                border.width: 2
-                border.color: Util.alpha(Color.background, 0.7)
-                opacity: 0.7
-                z: -1
-            }
-
             Column {
                 id: contentCol
                 anchors.centerIn: parent
@@ -654,6 +632,7 @@ Item {
                                     selectedWorkspaceId: root.selectedWorkspaceId
                                     cardWidth: container.dynamicCardWidth
                                     cardHeight: container.dynamicCardHeight
+                                    appLibrary: root.appLibrary
                                     onWindowClicked: addr => {
                                         root.selectAddress(addr);
                                         root.commit();
@@ -672,6 +651,7 @@ Item {
                     id: footerBar
                     width: parent.width
                     selectedClientData: root.selectedClientData
+                    appLibrary: root.appLibrary
                 }
             }
         }

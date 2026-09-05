@@ -10,6 +10,7 @@ Rectangle {
     property int selectedWorkspaceId: -1
     property int cardWidth: 280
     property int cardHeight: 220
+    property var appLibrary: null
 
     signal windowClicked(string address)
     signal workspaceClicked(int wsId)
@@ -76,7 +77,7 @@ Rectangle {
                         color: root.containsSelected ? Color.background : Color.foreground
                         font.bold: true
                         font.pixelSize: Style.font.caption
-                        font.family: Style.font.family
+                        font.family: Style.font.resolvedFamily || Style.font.family
                     }
                 }
 
@@ -85,7 +86,7 @@ Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.cardWidth < 220 ? ("WS " + root.name) : ("Workspace " + root.name)
                     color: root.containsSelected ? Color.foreground : (root.isActive ? Color.foreground : Color.muted)
-                    font.family: Style.font.menuFamily
+                    font.family: Style.font.resolvedFamily || Style.font.family
                     font.pixelSize: Style.font.caption
                     font.weight: root.containsSelected ? Font.Bold : Font.Medium
                 }
@@ -95,7 +96,7 @@ Rectangle {
             Rectangle {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                width: countText.implicitWidth + 10
+                width: txtCount.implicitWidth + 12
                 height: Math.max(18, Style.space(18))
                 radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
                 color: Util.alpha(Color.foreground, 0.05)
@@ -104,11 +105,11 @@ Rectangle {
                 visible: root.cardWidth >= 200
 
                 Text {
-                    id: countText
+                    id: txtCount
                     anchors.centerIn: parent
                     text: root.windows.length === 0 ? "empty" : (root.windows.length + " win")
                     color: root.windows.length === 0 ? Color.muted : Color.foreground
-                    font.family: Style.font.menuFamily
+                    font.family: Style.font.resolvedFamily || Style.font.family
                     font.pixelSize: Style.font.caption
                 }
             }
@@ -146,18 +147,24 @@ Rectangle {
 
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        text: "󰍹"
+                        color: root.containsSelected ? Color.accent : Color.muted
+                        font.family: Style.font.resolvedFamily || Style.font.family
+                        font.pixelSize: Math.max(18, Math.min(24, Math.round(root.cardWidth / 14)))
+                    }
+                    Text {
+                        anchors.horizontalCenter: parent.horizontalCenter
                         text: root.containsSelected ? "Empty Workspace" : "Empty"
                         color: root.containsSelected ? Color.accent : Color.muted
-                        font.family: Style.font.menuFamily
+                        font.family: Style.font.resolvedFamily || Style.font.family
                         font.pixelSize: Math.max(11, Math.min(13, Math.round(root.cardWidth / 22)))
                         font.bold: root.containsSelected
-                        font.italic: !root.containsSelected
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: root.containsSelected ? "Release Alt to switch" : ("Press [" + root.letter + "] to switch")
                         color: root.containsSelected ? Color.foreground : Color.muted
-                        font.family: Style.font.family
+                        font.family: Style.font.resolvedFamily || Style.font.family
                         font.pixelSize: Math.max(9, Math.min(11, Math.round(root.cardWidth / 26)))
                     }
                 }
@@ -176,6 +183,7 @@ Rectangle {
                 WindowTile {
                     winData: modelData
                     selectedAddress: root.selectedAddress
+                    appLibrary: root.appLibrary
                     onClicked: addr => root.windowClicked(addr)
                 }
             }

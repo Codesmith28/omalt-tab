@@ -7,10 +7,10 @@ Item {
 
     property string title: "OMALT-TAB"
 
-    implicitHeight: Math.max(32, Style.space(32))
-    implicitWidth: Math.max(leftRow.implicitWidth + 20, 240)
+    implicitHeight: Math.max(34, Style.space(34))
+    implicitWidth: Math.max(leftRow.implicitWidth + 20, 260)
 
-    // Left: Icon + Title
+    // Left: Brand Icon + Title
     Row {
         id: leftRow
         anchors.left: parent.left
@@ -23,14 +23,14 @@ Item {
             radius: Math.max(3, Math.round(Style.cornerRadius * 0.4))
             color: Util.alpha(Color.accent, 0.15)
             border.width: 1
-            border.color: Util.alpha(Color.accent, 0.3)
+            border.color: Util.alpha(Color.accent, 0.35)
+
             Text {
                 anchors.centerIn: parent
-                text: "⇄"
+                text: "󱂬"
                 color: Color.accent
-                font.pixelSize: Style.font.title
-                font.bold: true
-                font.family: Style.font.family
+                font.pixelSize: Math.max(14, Style.font.title)
+                font.family: Style.font.resolvedFamily || Style.font.family
             }
         }
 
@@ -38,122 +38,59 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: root.title
             color: Color.menu.text
-            font.family: Style.font.menuFamily
+            font.family: Style.font.resolvedFamily || Style.font.family
             font.pixelSize: Style.font.title
             font.bold: true
-            font.letterSpacing: 1.5
+            font.letterSpacing: 1.2
         }
     }
 
-    // Right: Ergonomic Keyboard shortcuts guide (responsively adapts to width)
+    // Right: Ergonomic Direct Jump Shortcuts (Clean, uncrowded)
     Row {
         id: rightRow
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.spacing.sm
+        spacing: Style.spacing.md
 
+        // Workspace direct jump hint (Home-row keys)
         Rectangle {
             id: hintWs
             height: Math.max(22, Style.space(24))
-            width: txtWs.implicitWidth + 14
+            width: txtWs.implicitWidth + 16
             radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
             color: Util.alpha(Color.foreground, Style.normalFillAlpha)
             border.width: 1
             border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
-            visible: root.width >= 360
-            Row {
+            visible: root.width >= 340
+
+            Text {
                 id: txtWs
                 anchors.centerIn: parent
-                spacing: 4
-                Text {
-                    text: "WS:"
-                    color: Color.muted
-                    font.family: Style.font.menuFamily
-                    font.pixelSize: Style.font.caption
-                }
-                Text {
-                    text: "A S D F G H J K L ;"
-                    color: Color.accent
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
-                    font.bold: true
-                }
+                text: "WS [A-Z]"
+                color: Color.foreground
+                font.family: Style.font.resolvedFamily || Style.font.family
+                font.pixelSize: Style.font.caption
+                font.bold: true
             }
         }
 
+        // Window direct jump hint (1-9 keys)
         Rectangle {
             id: hintWin
             height: Math.max(22, Style.space(24))
-            width: txtWin.implicitWidth + 14
+            width: txtWin.implicitWidth + 16
             radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
             color: Util.alpha(Color.foreground, Style.normalFillAlpha)
             border.width: 1
             border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
-            visible: root.width >= 450
-            Row {
+            visible: root.width >= 430
+
+            Text {
                 id: txtWin
                 anchors.centerIn: parent
-                spacing: 4
-                Text {
-                    text: "Win:"
-                    color: Color.muted
-                    font.family: Style.font.menuFamily
-                    font.pixelSize: Style.font.caption
-                }
-                Text {
-                    text: "1-9"
-                    color: Color.accent
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
-                    font.bold: true
-                }
-            }
-        }
-
-        Rectangle {
-            id: hintArrows
-            height: Math.max(22, Style.space(24))
-            width: txtArrows.implicitWidth + 14
-            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
-            color: Util.alpha(Color.foreground, Style.normalFillAlpha)
-            border.width: 1
-            border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
-            visible: root.width >= 530
-            Row {
-                id: txtArrows
-                anchors.centerIn: parent
-                spacing: 4
-                Text {
-                    text: "Nav:"
-                    color: Color.muted
-                    font.family: Style.font.menuFamily
-                    font.pixelSize: Style.font.caption
-                }
-                Text {
-                    text: "← → ↑ ↓"
-                    color: Color.accent
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.caption
-                    font.bold: true
-                }
-            }
-        }
-
-        Rectangle {
-            id: hintTab
-            height: Math.max(22, Style.space(24))
-            width: txtTab.implicitWidth + 14
-            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
-            color: Util.alpha(Color.foreground, Style.normalFillAlpha)
-            border.width: 1
-            border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
-            visible: root.width >= 610
-            Text {
-                id: txtTab
-                anchors.centerIn: parent
-                text: "Tab / ⇧Tab"
+                text: "Win [1-9]"
                 color: Color.foreground
-                font.family: Style.font.menuFamily
+                font.family: Style.font.resolvedFamily || Style.font.family
                 font.pixelSize: Style.font.caption
                 font.bold: true
             }
