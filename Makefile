@@ -62,19 +62,7 @@ link: check
 	fi
 	@ln -sfn "$(PROJECT_DIR)" "$(TARGET_DIR)"
 	@echo "--> Symlink created: $(TARGET_DIR) -> $(PROJECT_DIR)"
-	@mkdir -p "$(HOME)/.local/bin"
-	@ln -sf "$(PROJECT_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab-client"
-	@ln -sf "$(PROJECT_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab"
-	@ln -sf "$(PROJECT_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/hyprswitch-client"
-	@ln -sf "$(PROJECT_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/hyprswitch"
-	@if command -v omarchy >/dev/null 2>&1; then \
-		echo "--> Ensuring plugin is enabled..."; \
-		omarchy plugin enable "$(PLUGIN_ID)" >/dev/null 2>&1 || true; \
-	fi
-	@if [ -f "$(HYPR_BINDINGS)" ] && ! grep -q "$(PLUGIN_ID)" "$(HYPR_BINDINGS)"; then \
-		echo "--> Adding omalt-tab binding loader to $(HYPR_BINDINGS)..."; \
-		printf '\n-- Omarchy Plugins: omalt-tab window switcher\nlocal omalt_tab_binding = (os.getenv("HOME") or "") .. "/.config/omarchy/plugins/$(PLUGIN_ID)/hypr/bindings.lua"\nlocal f_omalt = io.open(omalt_tab_binding, "r")\nif f_omalt then f_omalt:close(); dofile(omalt_tab_binding) end\n' >> "$(HYPR_BINDINGS)"; \
-	fi
+	@$(MAKE) setup-integration
 	@$(MAKE) restart
 	@echo "✓ Development setup complete. Code edits in $(PROJECT_DIR) are now live on shell restart."
 
@@ -98,21 +86,24 @@ install: check
 		cp -r AltTabOverlay.qml components hypr js manifest.json LICENSE README.md "$(TARGET_DIR)/"; \
 	fi
 	@chmod +x "$(TARGET_DIR)/hypr/omalt-tab-client"
+	@$(MAKE) setup-integration
+	@$(MAKE) restart
+	@echo "✓ omalt-tab installed successfully!"
+
+setup-integration:
 	@mkdir -p "$(HOME)/.local/bin"
 	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab-client"
 	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab"
 	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/hyprswitch-client"
 	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/hyprswitch"
 	@if command -v omarchy >/dev/null 2>&1; then \
-		echo "--> Enabling plugin..."; \
+		echo "--> Ensuring plugin is enabled..."; \
 		omarchy plugin enable "$(PLUGIN_ID)" >/dev/null 2>&1 || true; \
 	fi
 	@if [ -f "$(HYPR_BINDINGS)" ] && ! grep -q "$(PLUGIN_ID)" "$(HYPR_BINDINGS)"; then \
 		echo "--> Adding omalt-tab binding loader to $(HYPR_BINDINGS)..."; \
 		printf '\n-- Omarchy Plugins: omalt-tab window switcher\nlocal omalt_tab_binding = (os.getenv("HOME") or "") .. "/.config/omarchy/plugins/$(PLUGIN_ID)/hypr/bindings.lua"\nlocal f_omalt = io.open(omalt_tab_binding, "r")\nif f_omalt then f_omalt:close(); dofile(omalt_tab_binding) end\n' >> "$(HYPR_BINDINGS)"; \
 	fi
-	@$(MAKE) restart
-	@echo "✓ omalt-tab installed successfully!"
 
 update:
 	@if [ -L "$(TARGET_DIR)" ]; then \
