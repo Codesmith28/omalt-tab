@@ -19,7 +19,7 @@ if command -v omarchy-shell >/dev/null 2>&1; then
     ACTION="${1:-next}"
     case "$ACTION" in
         next|prev|commit|cancel|toggle|left|right|up|down|screenshot)
-            omarchy-shell shell call "$PLUGIN_ID" "$ACTION" 2>/dev/null && exit 0
+            omarchy-shell shell call "$PLUGIN_ID" "$ACTION" "" 2>/dev/null && exit 0
             ;;
         workspace)
             omarchy-shell shell call "$PLUGIN_ID" "jumpWorkspace" "${2:-a}" 2>/dev/null && exit 0
