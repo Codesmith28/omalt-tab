@@ -35,10 +35,19 @@ Item {
     readonly property var borderSpec: Border.surfaceSpec("menu", "border", Color.menu.border, Math.max(1, Style.space(2)))
     readonly property int cornerRadius: Style.cornerRadius
 
-    // Sync icon cache with system desktop entries
+    // Sync icon cache with system desktop entries and app library
     Connections {
         target: DesktopEntries.applications
         function onValuesChanged() {
+            Icons.clearIconCache();
+        }
+    }
+    Connections {
+        target: root.appLibrary
+        function onAppsChanged() {
+            Icons.clearIconCache();
+        }
+        function onIconIndexChanged() {
             Icons.clearIconCache();
         }
     }

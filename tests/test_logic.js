@@ -267,6 +267,28 @@ const nav = loadModule("js/Navigation.js");
     "Should include full app ID",
   );
 
+  // Dynamic candidate decomposition for reverse-DNS with generic suffixes (e.g. org.telegram.desktop, com.spotify.Client)
+  const telegramCands = icons.getNativeIconCandidates("org.telegram.desktop", "");
+  assert(telegramCands.includes("telegram"), "Should extract telegram from org.telegram.desktop");
+  assert(telegramCands.includes("telegram-desktop"), "Should include telegram-desktop candidate");
+
+  const spotifyCands = icons.getNativeIconCandidates("com.spotify.Client", "");
+  assert(spotifyCands.includes("spotify"), "Should extract spotify from com.spotify.Client");
+
+  // Dynamic candidate decomposition for Web Apps & PWAs (e.g. Brave / Chrome web apps)
+  const whatsappCands = icons.getNativeIconCandidates(
+    "brave-web.whatsapp.com__-Default",
+    "brave-web.whatsapp.com__-Default",
+    "web.whatsapp.com",
+    "web.whatsapp.com_/"
+  );
+  assert(whatsappCands.includes("whatsapp"), "Should extract whatsapp from brave-web.whatsapp.com__-Default");
+  assert(whatsappCands.includes("Whatsapp"), "Should include capitalized Whatsapp candidate");
+  assert(whatsappCands.includes("brave"), "Should include browser fallback candidate");
+
+  const slackCands = icons.getNativeIconCandidates("chrome-app.slack.com__-Default", "");
+  assert(slackCands.includes("slack"), "Should extract slack from chrome-app.slack.com__-Default");
+
   // Dynamic candidate decomposition (suffix stripping)
   const braveCands = icons.getNativeIconCandidates(
     "brave-browser",
@@ -294,14 +316,26 @@ const nav = loadModule("js/Navigation.js");
     "Workspace fallback should be workspace icon",
   );
 
-  // resolveIcon with mock Quickshell and DesktopEntries
+  // resolveIcon with mock Quickshell, DesktopEntries, and shellAppLib
   const mockQuickshell = {
     iconPath: function(name) {
       if (name === "ghostty") return "/usr/share/icons/hicolor/scalable/apps/ghostty.svg";
       if (name === "brave-desktop") return "image://icon/brave-desktop";
       if (name === "vscode") return "image://icon/vscode";
+      if (name === "whatsapp") return "/home/codesmith28/.local/share/icons/hicolor/256x256/apps/whatsapp.png";
       if (name === "application-x-executable") return "image://icon/application-x-executable";
       return "";
+    }
+  };
+
+  const mockShellAppLib = {
+    iconIndex: {
+      "whatsapp": "/home/codesmith28/.local/share/icons/hicolor/256x256/apps/whatsapp.png"
+    },
+    iconSource: function(name) {
+      if (name === "whatsapp") return "file:///home/codesmith28/.local/share/icons/hicolor/256x256/apps/whatsapp.png";
+      // Simulates real AppLibrary returning fallback application-x-executable on miss
+      return "image://icon/application-x-executable";
     }
   };
 
@@ -309,12 +343,16 @@ const nav = loadModule("js/Navigation.js");
     byId: function(id) {
       if (id === "brave-browser") return { id: "brave-browser", icon: "brave-desktop" };
       if (id === "code") return { id: "code", icon: "vscode" };
+      if (id === "Whatsapp" || id === "Whatsapp.desktop" || id === "whatsapp") {
+        return { id: "Whatsapp.desktop", name: "Whatsapp", icon: "whatsapp", execString: "omarchy-launch-webapp \"https://web.whatsapp.com/\"" };
+      }
       return null;
     },
     applications: {
       values: [
         { id: "brave-browser", icon: "brave-desktop", startupClass: "brave-browser" },
-        { id: "code", icon: "vscode", startupClass: "Code" }
+        { id: "code", icon: "vscode", startupClass: "Code" },
+        { id: "Whatsapp.desktop", name: "Whatsapp", icon: "whatsapp", execString: "omarchy-launch-webapp \"https://web.whatsapp.com/\"" }
       ]
     }
   };
@@ -331,12 +369,24 @@ const nav = loadModule("js/Navigation.js");
   const ghosttyRes = icons.resolveIcon(mockQuickshell, mockDesktopEntries, "com.mitchellh.ghostty", "com.mitchellh.ghostty");
   assert.strictEqual(ghosttyRes, "/usr/share/icons/hicolor/scalable/apps/ghostty.svg");
 
-  // 4. Fallback for completely unknown app to system application-x-executable
-  const unknownRes = icons.resolveIcon(mockQuickshell, mockDesktopEntries, "unknown-app-xyz", "");
+  // 4. Resolve WhatsApp Web App via window class and exec URL matching
+  const whatsappRes = icons.resolveIcon(
+    mockQuickshell,
+    mockDesktopEntries,
+    "brave-web.whatsapp.com__-Default",
+    "brave-web.whatsapp.com__-Default",
+    mockShellAppLib,
+    "web.whatsapp.com",
+    "web.whatsapp.com_/"
+  );
+  assert.strictEqual(whatsappRes, "file:///home/codesmith28/.local/share/icons/hicolor/256x256/apps/whatsapp.png", "Should resolve WhatsApp web app to whatsapp icon");
+
+  // 5. Fallback for completely unknown app to system application-x-executable
+  const unknownRes = icons.resolveIcon(mockQuickshell, mockDesktopEntries, "unknown-app-xyz", "", mockShellAppLib);
   assert.strictEqual(unknownRes, "image://icon/application-x-executable", "Should fallback to application-x-executable");
 
   console.log(
-    "  ✓ Icons.js dynamically generates FreeDesktop candidates, checks DesktopEntries, and resolves system app icons",
+    "  ✓ Icons.js dynamically generates FreeDesktop candidates, resolves Web Apps / PWAs, checks DesktopEntries, and resolves system app icons",
   );
 }
 

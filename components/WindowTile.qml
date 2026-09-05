@@ -79,7 +79,7 @@ Rectangle {
         Image {
             id: appIcon
             anchors.fill: parent
-            source: root.winData ? Icons.resolveIcon(Quickshell, DesktopEntries, root.winData.clientClass, root.winData.initialClass, root.appLibrary) : ""
+            source: root.winData ? Icons.resolveIcon(Quickshell, DesktopEntries, root.winData.clientClass, root.winData.initialClass, root.appLibrary, root.winData.title, root.winData.initialTitle) : ""
             sourceSize.width: 48
             sourceSize.height: 48
             fillMode: Image.PreserveAspectFit

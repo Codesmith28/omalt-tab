@@ -153,6 +153,7 @@ function parseSnapshot(data, wsLetters) {
                 title: win.title || win.initialTitle || win.class || "Window",
                 clientClass: win.class || win.initialClass || "window",
                 initialClass: win.initialClass || "",
+                initialTitle: win.initialTitle || "",
                 workspaceId: curWid,
                 wsLetter: letter.toUpperCase(),
                 wsIndex: num,
@@ -210,6 +211,7 @@ function findClientData(workspacesData, address, fallbackClient) {
             title: fallbackClient.title || fallbackClient.class || "Window",
             clientClass: fallbackClient.class || "window",
             initialClass: fallbackClient.initialClass || "",
+            initialTitle: fallbackClient.initialTitle || "",
             wsLetter: "A",
             wsIndex: 1,
             workspaceId: fallbackClient.workspace ? fallbackClient.workspace.id : 1

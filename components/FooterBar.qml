@@ -37,7 +37,7 @@ Rectangle {
                 anchors.fill: parent
                 visible: root.selectedClientData && !root.selectedClientData.isWorkspace
                 source: (root.selectedClientData && !root.selectedClientData.isWorkspace)
-                    ? Icons.resolveIcon(Quickshell, DesktopEntries, root.selectedClientData.clientClass, root.selectedClientData.initialClass, root.appLibrary)
+                    ? Icons.resolveIcon(Quickshell, DesktopEntries, root.selectedClientData.clientClass, root.selectedClientData.initialClass, root.appLibrary, root.selectedClientData.title, root.selectedClientData.initialTitle)
                     : ""
                 sourceSize.width: 64
                 sourceSize.height: 64
