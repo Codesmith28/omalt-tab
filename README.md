@@ -142,6 +142,20 @@ To install or restore standard release-to-switch behavior:
 make prod
 ```
 
+### Remove
+
+To fully uninstall `omalt-tab`, including Hyprland keybindings and helper symlinks:
+
+```sh
+omarchy plugin remove io.github.codesmith28.omalt-tab
+```
+
+Or from the project directory for a complete cleanup (uses `omarchy plugin remove` under the hood):
+
+```sh
+make uninstall
+```
+
 ---
 
 ## ⚙ Hyprland Keybindings Setup
@@ -193,7 +207,7 @@ end
 | `make restart` | Restarts Omarchy shell and reloads Hyprland bindings |
 | `make update` | Syncs latest code changes and reloads the active environment |
 | `make clean-legacy` | Detects and cleans up obsolete `hyprswitch` services or autostarts |
-| `make uninstall` | Disables plugin in Omarchy and cleanly removes plugin symlinks/files |
+| `make uninstall` | Runs `omarchy plugin remove`, cleans Hyprland bindings, and removes helper symlinks |
 
 ---
 
