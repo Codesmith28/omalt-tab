@@ -250,18 +250,52 @@ Item {
         return (offset > 0) ? 1 : (len - 1);
     }
 
+    function selectInitialWorkspaceForOffset(offset) {
+        if (!root.workspacesData || root.workspacesData.length === 0) return;
+
+        var activeIdx = -1;
+        for (var i = 0; i < root.workspacesData.length; i++) {
+            if (root.workspacesData[i].isActive) {
+                activeIdx = i;
+                break;
+            }
+        }
+        if (activeIdx === -1) activeIdx = 0;
+
+        if (root.workspacesData.length === 1) {
+            root.selectWorkspace(root.workspacesData[0].id);
+            return;
+        }
+
+        var nextIdx = Navigation.cycleIndex(activeIdx, offset, root.workspacesData.length);
+        root.selectWorkspace(root.workspacesData[nextIdx].id);
+    }
+
     function openWithOffset(offset) {
         root.logDebug("Opening switcher with offset: " + offset);
         root.pendingCommit = false;
         root.pendingOffset = offset;
         root.selectedWorkspaceId = -1;
+
         var hasMru = root.mruList && root.mruList.length > 0;
-        root.isOpening = !hasMru;
         if (hasMru) {
+            root.isOpening = false;
             root.selectedIndex = initialIndexForOffset(root.mruList.length, offset);
             root.updateSelectionFromIndex();
             root.opened = true;
+        } else if (root.workspacesData && root.workspacesData.length > 0) {
+            // No windows open, but workspaces are cached: open immediately and cycle workspace
+            root.isOpening = false;
+            root.selectedIndex = -1;
+            root.selectedAddress = "";
+            root.selectInitialWorkspaceForOffset(offset);
+            root.opened = true;
+        } else {
+            // Cold cache, wait for snapshot before showing
+            root.opened = false;
+            root.isOpening = true;
         }
+
         snapshotFetcher.running = false;
         snapshotFetcher.running = true;
     }
@@ -276,13 +310,39 @@ Item {
         }
 
         if (flatMru.length === 0) {
-            if (root.workspacesData && root.workspacesData.length > 0) {
+            // Quick-tap: Alt was released while snapshot was fetching
+            if (root.pendingCommit) {
+                root.pendingCommit = false;
+                root.opened = false;
+                root.isOpening = false;
+                root.dismiss();
+                if (root.selectedWorkspaceId > 0) {
+                    focusDispatcher.switchWorkspace(root.selectedWorkspaceId);
+                } else {
+                    focusDispatcher.resetSubmap();
+                }
+                return;
+            }
+
+            // User requested to open switcher while no windows exist (holding Alt)
+            if (root.isOpening) {
+                root.isOpening = false;
                 root.selectedIndex = -1;
                 root.selectedAddress = "";
-                root.selectWorkspace(root.workspacesData[0].id);
+                root.selectInitialWorkspaceForOffset(root.pendingOffset);
                 root.opened = true;
                 return;
             }
+
+            // If already opened, keep current selected workspace
+            if (root.opened) {
+                if (root.selectedWorkspaceId > 0) {
+                    root.selectWorkspace(root.selectedWorkspaceId);
+                }
+                return;
+            }
+
+            // Background refresh (startup, window closed): DO NOT AUTO-START
             root.selectedIndex = -1;
             root.selectedAddress = "";
             root.selectedClientData = null;
@@ -340,9 +400,24 @@ Item {
     }
 
     function cycle(delta) {
-        if (!root.mruList || root.mruList.length === 0) return;
-        root.selectedIndex = Navigation.cycleIndex(root.selectedIndex, delta, root.mruList.length);
-        root.updateSelectionFromIndex();
+        if (root.mruList && root.mruList.length > 0) {
+            root.selectedIndex = Navigation.cycleIndex(root.selectedIndex, delta, root.mruList.length);
+            root.updateSelectionFromIndex();
+            return;
+        }
+
+        // When no windows are open in any workspace, cycle through workspaces
+        if (root.workspacesData && root.workspacesData.length > 0) {
+            var currentIdx = 0;
+            for (var i = 0; i < root.workspacesData.length; i++) {
+                if (root.workspacesData[i].id === root.selectedWorkspaceId) {
+                    currentIdx = i;
+                    break;
+                }
+            }
+            var nextIdx = Navigation.cycleIndex(currentIdx, delta, root.workspacesData.length);
+            root.selectWorkspace(root.workspacesData[nextIdx].id);
+        }
     }
 
     function jumpWorkspace(letter) {
@@ -452,6 +527,7 @@ Item {
             root.opened = false;
             root.isOpening = false;
             root.pendingCommit = false;
+            root.dismiss();
             if (root.selectedAddress && root.selectedAddress.length > 0) {
                 var addr = root.selectedAddress;
                 focusDispatcher.focus(addr);
@@ -490,6 +566,7 @@ Item {
         root.isOpening = false;
         root.pendingCommit = false;
         root.opened = false;
+        root.dismiss();
         focusDispatcher.resetSubmap();
         refreshTimer.restart();
     }

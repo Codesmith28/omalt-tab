@@ -110,11 +110,8 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
     }
     for (var w = 0; w < workspaces.length; w++) {
         var wid = workspaces[w].id;
-        var winCount = (wsClientsMap[wid] && wsClientsMap[wid].length) || 0;
-        if (wid > 0 && (winCount > 0 || wid === activeWsId || (workspaces[w].windows && workspaces[w].windows > 0))) {
-            if (populatedIds.indexOf(wid) === -1) {
-                populatedIds.push(wid);
-            }
+        if (wid > 0 && populatedIds.indexOf(wid) === -1) {
+            populatedIds.push(wid);
         }
     }
     if (activeWsId > 0 && populatedIds.indexOf(activeWsId) === -1) {
@@ -125,8 +122,13 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
         populatedIds.push(activeWsId > 0 ? activeWsId : 1);
     }
 
-    var minId = Math.min.apply(null, populatedIds);
-    var maxId = Math.max.apply(null, populatedIds);
+    var minId = 1;
+    for (var p = 0; p < populatedIds.length; p++) {
+        if (populatedIds[p] > 0 && populatedIds[p] < minId) {
+            minId = populatedIds[p];
+        }
+    }
+    var maxId = Math.max(1, Math.max.apply(null, populatedIds));
 
     // Build the complete list of workspaces from minId to maxId,
     // including any empty workspaces in between

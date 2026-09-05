@@ -502,4 +502,65 @@ const nav = loadModule("js/Navigation.js");
   console.log("  ✓ Dev mode correctly activates via gitignored .dev flag or OMALT_TAB_DEV env var");
 }
 
+// Test 9: Zero windows open across all workspaces returns empty mruList
+{
+  const emptySnapshot = {
+    clients: [],
+    workspaces: [{ id: 1, name: "1" }],
+    monitors: [
+      {
+        id: 0,
+        name: "eDP-1",
+        width: 1920,
+        height: 1080,
+        x: 0,
+        y: 0,
+        activeWorkspace: { id: 1 },
+      },
+    ],
+  };
+
+  const parsed = wm.parseSnapshot(emptySnapshot, ["a"]);
+  assert.strictEqual(parsed.mruList.length, 0, "mruList should be empty when no windows exist");
+  assert.strictEqual(parsed.workspaces.length, 1, "Should still track active workspace");
+  assert.strictEqual(parsed.workspaces[0].isEmpty, true, "Workspace should be marked empty");
+  assert.strictEqual(parsed.workspaces[0].windows.length, 0, "Workspace should have 0 windows");
+
+  console.log("  ✓ parseSnapshot with zero windows returns empty mruList and empty workspaces");
+}
+
+// Test 10: Being on workspace 4 with zero windows open anywhere returns workspaces 1, 2, 3, 4
+{
+  const emptySnapshotWs4 = {
+    clients: [],
+    workspaces: [{ id: 4, name: "4" }],
+    monitors: [
+      {
+        id: 0,
+        name: "eDP-1",
+        width: 1920,
+        height: 1080,
+        x: 0,
+        y: 0,
+        activeWorkspace: { id: 4 },
+      },
+    ],
+  };
+
+  const parsed = wm.parseSnapshot(emptySnapshotWs4, ["a", "s", "d", "f"]);
+  assert.strictEqual(parsed.mruList.length, 0, "mruList should be empty");
+  assert.strictEqual(parsed.workspaces.length, 4, "Should show workspaces 1, 2, 3, 4");
+  assert.strictEqual(parsed.workspaces[0].id, 1);
+  assert.strictEqual(parsed.workspaces[0].letter, "A");
+  assert.strictEqual(parsed.workspaces[1].id, 2);
+  assert.strictEqual(parsed.workspaces[1].letter, "S");
+  assert.strictEqual(parsed.workspaces[2].id, 3);
+  assert.strictEqual(parsed.workspaces[2].letter, "D");
+  assert.strictEqual(parsed.workspaces[3].id, 4);
+  assert.strictEqual(parsed.workspaces[3].letter, "F");
+  assert.strictEqual(parsed.workspaces[3].isActive, true);
+
+  console.log("  ✓ On workspace 4 with zero windows, all workspaces 1..4 are generated with correct letters");
+}
+
 console.log("All unit tests passed successfully!");
