@@ -93,8 +93,8 @@ omarchy plugin add https://github.com/codesmith28/omalt-tab.git --enable
 | `make dev` | Replaces installed plugin with **Dev Mode** plugin (switcher stays open; press Enter to switch) |
 | `make prod` | Replaces installed plugin with **Production Mode** plugin (release Alt to switch immediately) |
 | `make install` | Copies files to Omarchy plugins directory in production mode, enables plugin, and restarts shell |
-| `make mode-dev` | Sets `devMode = true` in `js/Config.js` |
-| `make mode-prod` | Sets `devMode = false` in `js/Config.js` |
+| `make mode-dev` | Enables Dev Mode flag (`.dev`, gitignored) |
+| `make mode-prod` | Disables Dev Mode flag (removes `.dev`) |
 | `make update` | Syncs latest changes and reloads shell |
 | `make check` | Runs unit tests, manifest validation, bash syntax, and lua syntax checks |
 | `make test` | Executes automated Node.js unit tests for model, navigation, and config |

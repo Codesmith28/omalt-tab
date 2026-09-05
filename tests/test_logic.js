@@ -474,4 +474,32 @@ const nav = loadModule("js/Navigation.js");
   );
 }
 
+// Test 8: Gitignored .dev flag detection and devMode precedence
+{
+  function resolveDevMode(devFileLoaded, devFileText, configDevMode, envDev) {
+    const hasDevFile =
+      devFileLoaded &&
+      devFileText.trim() !== "0" &&
+      devFileText.trim() !== "false";
+    return hasDevFile || !!configDevMode || envDev === "1";
+  }
+
+  // When .dev flag file is missing (devFileLoaded = false) and no env/config overrides
+  assert.strictEqual(resolveDevMode(false, "", false, undefined), false, "Default without .dev should be false");
+
+  // When .dev flag file exists with 'true', '1', or empty
+  assert.strictEqual(resolveDevMode(true, "true\n", false, undefined), true, ".dev with true should activate dev mode");
+  assert.strictEqual(resolveDevMode(true, "1", false, undefined), true, ".dev with 1 should activate dev mode");
+  assert.strictEqual(resolveDevMode(true, "", false, undefined), true, "Empty .dev file should activate dev mode");
+
+  // When .dev flag file contains 'false' or '0'
+  assert.strictEqual(resolveDevMode(true, "false", false, undefined), false, ".dev with false should deactivate dev mode");
+  assert.strictEqual(resolveDevMode(true, "0", false, undefined), false, ".dev with 0 should deactivate dev mode");
+
+  // When OMALT_TAB_DEV is set
+  assert.strictEqual(resolveDevMode(false, "", false, "1"), true, "OMALT_TAB_DEV=1 should activate dev mode");
+
+  console.log("  ✓ Dev mode correctly activates via gitignored .dev flag or OMALT_TAB_DEV env var");
+}
+
 console.log("All unit tests passed successfully!");

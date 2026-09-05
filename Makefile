@@ -19,8 +19,8 @@ help:
 	@echo "  make dev         - Replace installed plugin with Dev Mode plugin (press Enter to switch)"
 	@echo "  make prod        - Replace installed plugin with Production Mode plugin (release Alt to switch)"
 	@echo "  make install     - Copy files to ~/.config/omarchy/plugins, enable plugin, and restart shell"
-	@echo "  make mode-dev    - Set devMode = true in js/Config.js"
-	@echo "  make mode-prod   - Set devMode = false in js/Config.js"
+	@echo "  make mode-dev    - Enable Dev Mode flag (.dev, gitignored)"
+	@echo "  make mode-prod   - Disable Dev Mode flag (remove .dev)"
 	@echo "  make update      - Sync latest changes and reload shell"
 	@echo "  make uninstall   - Disable plugin and remove from ~/.config/omarchy/plugins"
 	@echo "  make validate    - Validate plugin manifest, shell scripts, and run logic tests"
@@ -52,13 +52,21 @@ check: test
 	fi
 	@echo "✓ All checks and tests passed!"
 
-set-mode-%:
-	@echo "--> Setting devMode = $* in js/Config.js..."
-	@sed -i 's/^var devMode = .*/var devMode = $*;/' js/Config.js
-	@echo "✓ Mode set to $* in configuration."
+mode-dev:
+	@echo "--> Enabling Dev Mode (.dev flag)..."
+	@echo "true" > .dev
+	@if [ -d "$(TARGET_DIR)" ] && [ ! -L "$(TARGET_DIR)" ]; then echo "true" > "$(TARGET_DIR)/.dev"; fi
+	@echo "✓ Dev mode flag enabled (.dev created, gitignored)."
 
-mode-dev: set-mode-true
-mode-prod: set-mode-false
+mode-prod:
+	@echo "--> Disabling Dev Mode..."
+	@rm -f .dev "$(TARGET_DIR)/.dev"
+	@echo "✓ Production mode enabled (.dev removed)."
+
+set-mode-true: mode-dev
+set-mode-false: mode-prod
+set-mode-%:
+	@if [ "$*" = "true" ]; then $(MAKE) mode-dev; else $(MAKE) mode-prod; fi
 
 dev: mode-dev link
 	@echo "=========================================================="
@@ -107,9 +115,12 @@ install: mode-prod check
 			--exclude='tests' \
 			--exclude='Makefile' \
 			--exclude='*.swp' \
+			--exclude='.dev' \
+			--exclude='.dev*' \
 			./ "$(TARGET_DIR)/"; \
 	else \
 		cp -r AltTabOverlay.qml components hypr js manifest.json LICENSE README.md "$(TARGET_DIR)/"; \
+		rm -f "$(TARGET_DIR)/.dev" "$(TARGET_DIR)/.dev*"; \
 	fi
 	@chmod +x "$(TARGET_DIR)/hypr/omalt-tab-client"
 	@$(MAKE) setup-integration
@@ -171,7 +182,7 @@ restart:
 status:
 	@echo "=== omalt-tab Status ==="
 	@echo -n "Active Mode: "
-	@if grep -qs "var devMode = true;" "$(TARGET_DIR)/js/Config.js" "$(PROJECT_DIR)/js/Config.js"; then \
+	@if [ -f "$(PROJECT_DIR)/.dev" ] || [ -f "$(TARGET_DIR)/.dev" ] || [ "$$OMALT_TAB_DEV" = "1" ] || grep -qs "var devMode = true;" "$(TARGET_DIR)/js/Config.js" "$(PROJECT_DIR)/js/Config.js" 2>/dev/null; then \
 		echo "DEV MODE (Enter required to switch tasks; switcher stays open)"; \
 	else \
 		echo "PRODUCTION MODE (Release Alt to switch tasks immediately)"; \

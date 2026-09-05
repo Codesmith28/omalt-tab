@@ -37,9 +37,23 @@ end
 
 local client_cmd = find_existing_file("hypr/omalt-tab-client") or (home .. "/.local/bin/omalt-tab-client") or "omalt-tab-client"
 
--- Detect if Dev Mode is enabled (either via OMALT_TAB_DEV env or js/Config.js)
+-- Detect if Dev Mode is enabled (via OMALT_TAB_DEV env, gitignored .dev flag, or js/Config.js)
 local function read_dev_mode()
     if os.getenv("OMALT_TAB_DEV") == "1" then return true end
+    local dev_flag = find_existing_file(".dev") or find_existing_file(".dev-mode")
+    if dev_flag then
+        local f = io.open(dev_flag, "r")
+        if f then
+            local content = f:read("*a")
+            f:close()
+            local trimmed = content and content:match("^%s*(.-)%s*$")
+            if trimmed ~= "0" and trimmed ~= "false" then
+                return true
+            end
+        else
+            return true
+        end
+    end
     local config_path = find_existing_file("js/Config.js")
     if config_path then
         local f = io.open(config_path, "r")

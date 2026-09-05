@@ -14,8 +14,18 @@ import "js/Icons.js" as Icons
 Item {
     id: root
 
-    // Dev Mode flag
-    readonly property bool devMode: Config.devMode || Quickshell.env("OMALT_TAB_DEV") === "1"
+    // Dev Mode flag: check for gitignored .dev flag file, Config.devMode, or OMALT_TAB_DEV env var
+    FileView {
+        id: devFlagFile
+        path: decodeURIComponent(String(Qt.resolvedUrl(".dev")).replace(/^file:\/\//, ""))
+        blockLoading: true
+        preload: true
+        watchChanges: true
+        printErrors: false
+    }
+
+    readonly property bool hasDevFile: devFlagFile.loaded && devFlagFile.text().trim() !== "0" && devFlagFile.text().trim() !== "false"
+    readonly property bool devMode: hasDevFile || Config.devMode || Quickshell.env("OMALT_TAB_DEV") === "1"
 
     function logDebug(msg) {
         if (root.devMode) {

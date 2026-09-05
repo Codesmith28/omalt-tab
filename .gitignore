@@ -6,3 +6,7 @@
 
 # Sockets and runtime
 *.sock
+
+# Developer mode flag (gitignored)
+.dev
+.dev*

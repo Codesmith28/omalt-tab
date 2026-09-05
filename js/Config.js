@@ -10,7 +10,9 @@
 //     * Verbose debug logging is enabled
 // - When devMode is false:
 //     * Standard production switcher: releasing Alt switches to the task immediately
-var devMode = true;
+// Note: Dev mode can be activated without dirtying git via the gitignored .dev flag
+// (e.g. 'make dev' or 'make mode-dev') or OMALT_TAB_DEV=1 environment variable.
+var devMode = false;
 
 // Extensible feature flags and dev options
 var options = {
