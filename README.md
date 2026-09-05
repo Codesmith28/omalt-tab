@@ -2,10 +2,9 @@
 
 # ❖ omalt-tab
 
-**An ergonomic, race-condition-free Quickshell Alt+Tab window switcher with home-row workspace navigation and spatial miniature desktop layout for Omarchy & Hyprland.**
+**An ergonomic, race-condition-free Quickshell Alt+Tab window switcher with home-row workspace navigation and spatial miniature desktop layout for Omarchy.**
 
 [![Omarchy Plugin](https://img.shields.io/badge/Omarchy-Plugin-3b82f6.svg?style=for-the-badge&logo=archlinux&logoColor=white)](https://omarchy.org)
-[![Hyprland](https://img.shields.io/badge/Hyprland-Compositor-00c853.svg?style=for-the-badge&logo=wayland&logoColor=white)](https://hyprland.org)
 [![Quickshell](https://img.shields.io/badge/Quickshell-0.3.1-f59e0b.svg?style=for-the-badge)](https://quickshell.outfoxxed.me)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-8b5cf6.svg?style=for-the-badge)](LICENSE)
 [![Tests Passing](https://img.shields.io/badge/Tests-Passing-10b981.svg?style=for-the-badge)](tests/test_logic.js)
@@ -29,7 +28,7 @@
 Most Linux Wayland task switchers either blindly iterate windows in an unstructured linear strip or trigger frantic focus changes on each keystroke. **omalt-tab** re-engineers window switching from first principles:
 
 - ⚡ **Atomic, Race-Condition-Free Focus**:
-  Clients and workspaces are snapshotted **once** in RAM when the overlay opens. Cycling through tasks updates only internal selection states — Hyprland focus history is **never mutated mid-cycle**. Focus is dispatched atomically only when you release `Alt` (or press `Enter`).
+  Clients and workspaces are snapshotted **once** in RAM when the overlay opens. Cycling through tasks updates only internal selection states — window focus history is **never mutated mid-cycle**. Focus is dispatched atomically only when you release `Alt` (or press `Enter`).
 - ⌨ **Home-Row Workspace Jumping (`A`–`;`)**:
   Skip tedious sequential cycling. Every workspace (`1` through `10`) is mapped straight across your keyboard's home row (`A`, `S`, `D`, `F`, `G`, `H`, `J`, `K`, `L`, `;`). Press one key to jump across your desktop instantly.
 - 🔢 **Direct Window Focus Badges (`1`–`9`)**:
@@ -64,8 +63,6 @@ Most Linux Wayland task switchers either blindly iterate windows in an unstructu
 </p>
 
 *The background is gracefully dimmed with Omarchy's menu scrim, maintaining focus entirely on your task navigation.*
-
-> 💡 **High-FPS Video**: A full 60fps recording is available at [`demo/demo.mp4`](demo/demo.mp4).
 
 ---
 
@@ -111,7 +108,7 @@ Most Linux Wayland task switchers either blindly iterate windows in an unstructu
 
 ## 📦 Installation & Setup
 
-### Method 1: Native Omarchy Plugin Manager (Recommended)
+### Method 1: Native Omarchy Plugin Manager (Recommended) (Upcoming after plugin release)
 
 Install and enable `omalt-tab` directly from git:
 
@@ -132,7 +129,7 @@ make dev
 `make dev` sets up:
 1. A development symlink in `~/.config/omarchy/plugins/io.github.codesmith28.omalt-tab`.
 2. A gitignored `.dev` flag that enables **Dev Mode** (switcher stays open after releasing `Alt`, requiring `Enter` to switch, and showing the header `DEV` badge).
-3. Automatic Hyprland client binary symlinks and binding loader integration.
+3. Automatic client binary symlinks and binding loader integration.
 
 ### Method 3: Clean Production Installation (`make prod`)
 
@@ -144,7 +141,7 @@ make prod
 
 ### Remove
 
-To fully uninstall `omalt-tab`, including Hyprland keybindings and helper symlinks:
+To fully uninstall `omalt-tab`, including keybindings and helper symlinks:
 
 ```sh
 omarchy plugin remove io.github.codesmith28.omalt-tab
@@ -158,9 +155,9 @@ make uninstall
 
 ---
 
-## ⚙ Hyprland Keybindings Setup
+## ⚙ Omarchy Keybindings Setup
 
-Plugins in Omarchy live in `~/.config/omarchy/plugins/`. Ensure your `~/.config/hypr/bindings.lua` includes the plugin loader:
+Plugins in Omarchy live in `~/.config/omarchy/plugins/`. Ensure your Omarchy keybindings configuration (`~/.config/hypr/bindings.lua`) includes the plugin loader:
 
 ### Option A: Automatic Plugin Loader (Recommended)
 Automatically loads `bindings.lua` from all installed Omarchy plugins:
@@ -201,25 +198,25 @@ end
 | `make prod` | Installs clean copy in standard production mode (release `Alt` to switch) |
 | `make mode-dev` | Enables Dev Mode flag (`.dev`, gitignored) without touching tracked files |
 | `make mode-prod` | Removes `.dev` flag file, restoring production mode |
-| `make status` | Displays active mode, installation symlink state, socket status, and Hyprland bindings |
+| `make status` | Displays active mode, installation symlink state, socket status, and keybindings |
 | `make test` | Executes automated Node.js unit tests for model, spatial logic, and navigation |
 | `make validate` | Runs unit tests, manifest validation, client bash syntax, and lua syntax checks |
-| `make restart` | Restarts Omarchy shell and reloads Hyprland bindings |
+| `make restart` | Restarts Omarchy shell and reloads keybindings |
 | `make update` | Syncs latest code changes and reloads the active environment |
-| `make clean-legacy` | Detects and cleans up obsolete `hyprswitch` services or autostarts |
-| `make uninstall` | Runs `omarchy plugin remove`, cleans Hyprland bindings, and removes helper symlinks |
+| `make clean-legacy` | Detects and cleans up obsolete switcher services or autostarts |
+| `make uninstall` | Runs `omarchy plugin remove`, cleans keybindings, and removes helper symlinks |
 
 ---
 
 ## 🏗 Architecture & Responsibilities
 
-The codebase follows a clean separation of concerns across presentation, core algorithms, compositor integration, and testing:
+The codebase follows a clean separation of concerns across presentation, core algorithms, shell integration, and testing:
 
 ```
 omalt-tab/
 ├── components/          # Modular QML visual presentation layer
 ├── js/                  # Decoupled navigation math, model parser, & icon resolver
-├── hypr/                # Hyprland keybinding submaps & IPC client script
+├── hypr/                # Keybinding submaps & IPC client script
 ├── tests/               # Automated regression and logic unit tests
 ├── demo/                # Showcase recordings and high-resolution media
 ├── AltTabOverlay.qml    # Main shell overlay entry point & IPC coordinator
@@ -234,14 +231,14 @@ omalt-tab/
 - **`js/` (Core Logic Engine)**:
   Framework-agnostic JavaScript business logic decoupled from Qt Quick. Responsible for window geometry scaling with top menu bar compensation (`WindowModel`), 2D spatial navigation and MRU cycler (`Navigation`), FreeDesktop / PWA icon candidate resolution (`Icons`), and central configuration defaults (`Config`).
 
-- **`hypr/` (Compositor Integration)**:
-  Native compositor hooks and IPC dispatching. Contains the Hyprland keybinding submap configuration with atomic Alt-release watcher (`bindings.lua`) and the sub-millisecond UNIX domain socket client (`omalt-tab-client`).
+- **`hypr/` (Keybindings & IPC Integration)**:
+  Desktop hooks and IPC dispatching. Contains the Omarchy keybinding submap configuration with atomic Alt-release watcher (`bindings.lua`) and the sub-millisecond UNIX domain socket client (`omalt-tab-client`).
 
 - **`tests/` (Verification Suite)**:
   Automated Node.js regression test suite (`test_logic.js`) validating coordinate normalization math, spatial traversal algorithms, empty workspace handling, icon resolution fallbacks, and dev flag logic.
 
 - **`demo/` (Showcase Media)**:
-  High-resolution media assets including the lossless showcase animation (`demo.gif`), 60fps raw video capture (`demo.mp4`), and desktop screenshots.
+  High-resolution media assets including the lossless showcase animation (`demo.gif`) and desktop screenshots.
 
 ---
 
