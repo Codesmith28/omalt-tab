@@ -126,6 +126,14 @@ Item {
     function right() { root.navigateDirection("right"); }
     function up()    { root.navigateDirection("up"); }
     function down()  { root.navigateDirection("down"); }
+    function screenshot() { root.takeScreenshot(); }
+
+    function takeScreenshot() {
+        root.logDebug("Taking screenshot");
+        var binPath = (root.omarchyPath && root.omarchyPath.length > 0) ? (root.omarchyPath + "/bin/omarchy-capture-screenshot") : "omarchy-capture-screenshot";
+        var cmd = binPath + " 2>/dev/null || omarchy-capture-screenshot 2>/dev/null || grimblast copysave area 2>/dev/null || hyprshot -m region 2>/dev/null || grim";
+        Quickshell.execDetached(["sh", "-c", cmd]);
+    }
 
     function handleCommand(cmd) {
         root.logDebug("Socket command received: " + cmd);
@@ -145,6 +153,8 @@ Item {
             root.cancel();
         } else if (action === "toggle") {
             root.toggle("");
+        } else if (action === "screenshot") {
+            root.takeScreenshot();
         } else if (action === "workspace") {
             if (arg) root.jumpWorkspace(arg);
         } else if (action === "window") {
@@ -516,9 +526,9 @@ Item {
             anchors.fill: parent
 
             Keys.onPressed: event => {
-                if (event.key === Qt.Key_Escape) {
+                if (event.key === Qt.Key_Escape || event.nativeScanCode === 9) {
                     root.cancel();
-                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space || event.nativeScanCode === 36 || event.nativeScanCode === 104) {
                     root.commit();
                 } else if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) {
                     root.cycle((event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)) ? -1 : 1);
@@ -542,6 +552,8 @@ Item {
                     }
                 } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
                     root.jumpWindow(event.key - Qt.Key_0);
+                } else if (event.key === Qt.Key_Print || event.key === Qt.Key_SysReq || ((event.key === Qt.Key_S || event.key === Qt.Key_Print) && (event.modifiers & Qt.MetaModifier))) {
+                    root.takeScreenshot();
                 } else if (event.text && event.text.length === 1) {
                     var ch = event.text.toLowerCase();
                     if ("asdfghjkl;".indexOf(ch) !== -1) {
@@ -614,6 +626,7 @@ Item {
                     width: parent.width
                     title: "OMALT-TAB"
                     devMode: root.devMode
+                    onScreenshotRequested: root.takeScreenshot()
                 }
 
                 Flickable {

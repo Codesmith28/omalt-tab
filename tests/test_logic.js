@@ -397,10 +397,12 @@ const nav = loadModule("js/Navigation.js");
   assert(typeof config.requireEnterToSwitch === "function", "requireEnterToSwitch should be a function");
   assert(typeof config.isDebugLogging === "function", "isDebugLogging should be a function");
   assert(typeof config.isDevBadgeVisible === "function", "isDevBadgeVisible should be a function");
+  assert(typeof config.isScreenshotUnlocked === "function", "isScreenshotUnlocked should be a function");
 
   // In default repo state, verify getter consistency
   const initialMode = config.isDevMode();
   assert.strictEqual(config.requireEnterToSwitch(), initialMode, "requireEnterToSwitch must match devMode");
+  assert.strictEqual(config.isScreenshotUnlocked(), true, "Screenshot should be unlocked by default or in dev mode");
 
   // When devMode is true: enter must be required to switch task
   config.devMode = true;
@@ -408,6 +410,7 @@ const nav = loadModule("js/Navigation.js");
   assert.strictEqual(config.requireEnterToSwitch(), true, "requireEnterToSwitch() must return true in dev mode");
   assert.strictEqual(config.isDebugLogging(), true, "isDebugLogging() must return true in dev mode");
   assert.strictEqual(config.isDevBadgeVisible(), true, "isDevBadgeVisible() must return true in dev mode");
+  assert.strictEqual(config.isScreenshotUnlocked(), true, "Screenshot must be unlocked in dev mode");
 
   // When devMode is false: release Alt switches immediately (requireEnter is false)
   config.devMode = false;
@@ -415,7 +418,7 @@ const nav = loadModule("js/Navigation.js");
   assert.strictEqual(config.requireEnterToSwitch(), false, "requireEnterToSwitch() must return false in prod mode");
 
   console.log(
-    "  ✓ Config.js correctly gates requireEnterToSwitch, debugLogging, and dev badges based on devMode",
+    "  ✓ Config.js correctly gates requireEnterToSwitch, debugLogging, dev badges, and screenshot unlock based on devMode",
   );
 }
 

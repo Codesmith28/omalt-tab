@@ -127,16 +127,52 @@ hl.define_submap("omalt-tab", function()
         hl.bind("Alt_R", commit_and_reset, { release = true })
     end
 
-    -- Manual confirmation (Enter / KP_Enter / Space)
-    -- Covers both bare key and ALT + key via bind_action, as well as SHIFT variants
-    for _, key in ipairs({ "RETURN", "KP_Enter", "SPACE" }) do
+    -- Manual confirmation (Return / KP_Enter / Space)
+    -- Hyprland/XKB uses "Return" (not "Enter") for the main Enter key
+    -- Covers Return, RETURN, KP_Enter, space, SPACE
+    -- Handles bare keys, ALT +, SHIFT +, and ALT + SHIFT + variants
+    local confirm_keys = {
+        "Return",
+        "RETURN",
+        "KP_Enter",
+        "space",
+        "SPACE"
+    }
+    for _, key in ipairs(confirm_keys) do
         bind_action(key, "commit")
         bind_action("SHIFT + " .. key, "commit")
+        hl.bind(key, commit_and_reset)
+        hl.bind("ALT + " .. key, commit_and_reset)
+        hl.bind("SHIFT + " .. key, commit_and_reset)
+        hl.bind("ALT + SHIFT + " .. key, commit_and_reset)
+    end
+
+    -- Unlock PrintScreen and screenshot tool shortcuts (unlocked in dev mode and submap)
+    local screenshot_cmd = "omarchy-capture-screenshot 2>/dev/null || grimblast copysave area 2>/dev/null || hyprshot -m region 2>/dev/null || grim"
+    local screenshot_keys = {
+        "PRINT",
+        "SHIFT + PRINT",
+        "SUPER + PRINT",
+        "SUPER + SHIFT + PRINT",
+        "SUPER + SHIFT + S",
+        "CTRL + PRINT",
+        "SUPER + CTRL + PRINT"
+    }
+    for _, sk in ipairs(screenshot_keys) do
+        hl.bind(sk, hl.dsp.exec_cmd(screenshot_cmd))
+        hl.bind("ALT + " .. sk, hl.dsp.exec_cmd(screenshot_cmd))
     end
 
     -- Cancel on Escape
-    bind_action("ESCAPE", "cancel")
-    bind_action("SHIFT + ESCAPE", "cancel")
+    local cancel_keys = { "Escape", "ESCAPE" }
+    for _, ck in ipairs(cancel_keys) do
+        bind_action(ck, "cancel")
+        bind_action("SHIFT + " .. ck, "cancel")
+        hl.bind(ck, cancel_and_reset)
+        hl.bind("ALT + " .. ck, cancel_and_reset)
+        hl.bind("SHIFT + " .. ck, cancel_and_reset)
+        hl.bind("ALT + SHIFT + " .. ck, cancel_and_reset)
+    end
 end)
 
 -- Main triggers: open switcher, enter submap, and start release watcher

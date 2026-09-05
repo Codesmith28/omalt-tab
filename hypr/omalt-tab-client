@@ -18,7 +18,7 @@ if command -v omarchy-shell >/dev/null 2>&1; then
     # Map command to omarchy-shell method
     ACTION="${1:-next}"
     case "$ACTION" in
-        next|prev|commit|cancel|toggle|left|right|up|down)
+        next|prev|commit|cancel|toggle|left|right|up|down|screenshot)
             omarchy-shell shell call "$PLUGIN_ID" "$ACTION" 2>/dev/null && exit 0
             ;;
         workspace)

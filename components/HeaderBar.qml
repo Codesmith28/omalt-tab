@@ -7,6 +7,7 @@ Item {
 
     property string title: "OMALT-TAB"
     property bool devMode: false
+    signal screenshotRequested()
 
     implicitHeight: Math.max(34, Style.space(34))
     implicitWidth: Math.max(leftRow.implicitWidth + 20, 260)
@@ -81,6 +82,51 @@ Item {
                 }
             }
         }
+
+        // Dev Mode Screenshot Action Button (Click or press PrtScn to capture)
+        Rectangle {
+            id: btnScreenshot
+            visible: root.devMode
+            anchors.verticalCenter: parent.verticalCenter
+            height: Math.max(20, Style.space(22))
+            width: shotRow.implicitWidth + 14
+            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            color: shotMouse.containsMouse ? Util.alpha(Color.accent, 0.28) : Util.alpha(Color.foreground, 0.08)
+            border.width: 1
+            border.color: shotMouse.containsMouse ? Color.accent : Util.alpha(Color.foreground, 0.20)
+
+            Row {
+                id: shotRow
+                anchors.centerIn: parent
+                spacing: 4
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: ""
+                    color: shotMouse.containsMouse ? Color.accent : Color.foreground
+                    font.family: Style.font.resolvedFamily || Style.font.family
+                    font.pixelSize: Style.font.caption
+                }
+
+                Text {
+                    id: txtShot
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Screenshot"
+                    color: shotMouse.containsMouse ? Color.accent : Color.foreground
+                    font.family: Style.font.resolvedFamily || Style.font.family
+                    font.pixelSize: Style.font.caption
+                    font.bold: true
+                }
+            }
+
+            MouseArea {
+                id: shotMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.screenshotRequested()
+            }
+        }
     }
 
     // Right: Ergonomic Direct Jump Shortcuts (Clean, uncrowded)
@@ -89,6 +135,28 @@ Item {
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.spacing.md
+
+        // Screenshot hint (PrtScn in dev mode)
+        Rectangle {
+            id: hintPrtScn
+            height: Math.max(22, Style.space(24))
+            width: txtPrtScn.implicitWidth + 16
+            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            color: Util.alpha(Color.foreground, Style.normalFillAlpha)
+            border.width: 1
+            border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
+            visible: root.devMode && root.width >= 500
+
+            Text {
+                id: txtPrtScn
+                anchors.centerIn: parent
+                text: "PrtScn"
+                color: Color.foreground
+                font.family: Style.font.resolvedFamily || Style.font.family
+                font.pixelSize: Style.font.caption
+                font.bold: true
+            }
+        }
 
         // Workspace direct jump hint (Home-row keys)
         Rectangle {

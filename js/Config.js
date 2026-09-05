@@ -19,7 +19,9 @@ var options = {
     // Enable verbose console logging for events, navigation, and snapshots
     debugLogging: devMode,
     // Show dev mode badge in header
-    showDevBadge: devMode
+    showDevBadge: devMode,
+    // Unlock PrintScreen / screenshot shortcuts during switcher display in dev mode
+    unlockScreenshot: true
 };
 
 function isDevMode() {
@@ -36,4 +38,8 @@ function isDebugLogging() {
 
 function isDevBadgeVisible() {
     return !!devMode || (options && !!options.showDevBadge);
+}
+
+function isScreenshotUnlocked() {
+    return !!devMode || (options && !!options.unlockScreenshot);
 }
