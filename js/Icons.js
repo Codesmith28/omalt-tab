@@ -78,6 +78,14 @@ function resolveIcon(quickshell, desktopEntries, clientClass, initialClass, shel
         return "";
     }
 
+    function save(p) {
+        if (p) {
+            _iconCache[key] = p;
+            return p;
+        }
+        return "";
+    }
+
     var candidates = getNativeIconCandidates(clientClass, initialClass);
 
     // 1. DesktopEntries direct lookup by candidate ID (e.g. "brave-browser", "code")
@@ -86,10 +94,7 @@ function resolveIcon(quickshell, desktopEntries, clientClass, initialClass, shel
             var entry = desktopEntries.byId(candidates[i]);
             if (entry && entry.icon) {
                 var p = queryPath(entry.icon);
-                if (p) {
-                    _iconCache[key] = p;
-                    return p;
-                }
+                if (p) return save(p);
             }
         }
     }
@@ -108,10 +113,7 @@ function resolveIcon(quickshell, desktopEntries, clientClass, initialClass, shel
                 if (sCls === target || aId === target || aName === target) {
                     if (a.icon) {
                         var p = queryPath(a.icon);
-                        if (p) {
-                            _iconCache[key] = p;
-                            return p;
-                        }
+                        if (p) return save(p);
                     }
                 }
             }
@@ -121,18 +123,12 @@ function resolveIcon(quickshell, desktopEntries, clientClass, initialClass, shel
     // 3. Probing native icon theme directly with candidates (e.g. "com.mitchellh.ghostty", "ghostty")
     for (var i = 0; i < candidates.length; i++) {
         var p = queryPath(candidates[i]);
-        if (p) {
-            _iconCache[key] = p;
-            return p;
-        }
+        if (p) return save(p);
     }
 
     // 4. Default system application icon (as in Omarchy app menu)
     var fallback = queryPath("application-x-executable") || queryPath("system-run");
-    if (fallback) {
-        _iconCache[key] = fallback;
-        return fallback;
-    }
+    if (fallback) return save(fallback);
 
     return "";
 }

@@ -9,6 +9,7 @@ Rectangle {
 
     property var selectedClientData: null
     property var appLibrary: null
+    property bool devMode: false
 
     implicitHeight: Math.max(54, Style.space(56))
     implicitWidth: 320
@@ -47,7 +48,7 @@ Rectangle {
             // 2. Workspace icon (only when an empty workspace itself is selected)
             Rectangle {
                 anchors.fill: parent
-                visible: root.selectedClientData && root.selectedClientData.isWorkspace
+                visible: Boolean(root.selectedClientData && root.selectedClientData.isWorkspace)
                 radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
                 color: Util.alpha(Color.accent, 0.15)
                 border.width: 1
@@ -72,11 +73,12 @@ Rectangle {
             visible: root.width >= 460
 
             Text {
-                text: "Release Alt to switch"
-                color: Color.muted
+                text: root.devMode ? "Press Enter to switch" : "Release Alt to switch"
+                color: root.devMode ? Color.accent : Color.muted
                 font.family: Style.font.resolvedFamily || Style.font.family
                 font.pixelSize: Style.font.caption
-                font.italic: true
+                font.bold: root.devMode
+                font.italic: !root.devMode
             }
 
             Rectangle {
@@ -160,7 +162,7 @@ Rectangle {
                     color: Util.alpha(Color.foreground, 0.08)
                     border.width: 1
                     border.color: Util.alpha(Color.foreground, 0.2)
-                    visible: root.selectedClientData && !root.selectedClientData.isWorkspace
+                    visible: Boolean(root.selectedClientData && !root.selectedClientData.isWorkspace)
 
                     Text {
                         id: txtIdx

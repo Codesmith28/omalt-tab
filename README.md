@@ -52,8 +52,13 @@ Built by **Sarthak Siddhpura**.
 
 ## Installation & Setup
 
-### 1. Developer Setup (Symlink Mode)
-If you are developing or customizing `omalt-tab`, use `make dev`. This creates a symlink in `~/.config/omarchy/plugins/` so your edits take effect immediately without copying files:
+### 1. Developer Mode (`make dev`)
+If you are developing or testing `omalt-tab`, run `make dev`. This configures the plugin in **Dev Mode** and sets up a development symlink in `~/.config/omarchy/plugins/`:
+- **Switcher stays open**: Releasing `Alt` does **not** automatically switch tasks.
+- **Enter required**: You must press `Enter` (`Return`) to enter into / focus the selected task.
+- **Header DEV badge**: Displays a visual `DEV` badge in the header.
+- **Footer prompt**: Shows `Press Enter to switch` in accent color.
+- **Debug logs**: Enables verbose logging for socket commands, snapshots, and lifecycle events.
 
 ```sh
 git clone https://github.com/codesmith28/omalt-tab.git ~/Projects/omalt-tab
@@ -61,12 +66,13 @@ cd ~/Projects/omalt-tab
 make dev
 ```
 
-### 2. Standalone Install (Copy Mode)
-To install a standalone copy into your Omarchy configuration:
+### 2. Production Mode (`make prod` or `make install`)
+To deploy or restore standard production behavior (where releasing `Alt` switches immediately):
 
 ```sh
 cd ~/Projects/omalt-tab
-make install
+make prod
+# Or make install to install a clean standalone copy
 ```
 
 ### 3. Native Omarchy Package Manager (Git URL)
@@ -84,13 +90,16 @@ omarchy plugin add https://github.com/codesmith28/omalt-tab.git --enable
 ### 5. Makefile Target Reference
 | Target | Description |
 | --- | --- |
-| `make dev` | Symlinks repo into Omarchy plugins directory, validates, enables, and restarts shell |
-| `make install` | Copies files into Omarchy plugins directory, validates, enables, and restarts shell |
+| `make dev` | Replaces installed plugin with **Dev Mode** plugin (switcher stays open; press Enter to switch) |
+| `make prod` | Replaces installed plugin with **Production Mode** plugin (release Alt to switch immediately) |
+| `make install` | Copies files to Omarchy plugins directory in production mode, enables plugin, and restarts shell |
+| `make mode-dev` | Sets `devMode = true` in `js/Config.js` |
+| `make mode-prod` | Sets `devMode = false` in `js/Config.js` |
 | `make update` | Syncs latest changes and reloads shell |
 | `make check` | Runs unit tests, manifest validation, bash syntax, and lua syntax checks |
-| `make test` | Executes automated Node.js unit tests for model and navigation |
+| `make test` | Executes automated Node.js unit tests for model, navigation, and config |
 | `make restart` | Restarts `omarchy-shell` to reload QML components into memory |
-| `make status` | Displays installation type, socket health, and legacy switcher status |
+| `make status` | Displays active mode (Dev/Prod), installation type, socket health, and legacy switcher status |
 | `make clean-legacy` | Disables obsolete standalone `hyprswitch` service and autostart script |
 | `make uninstall` | Disables plugin in Omarchy and removes it from `~/.config/omarchy/plugins` |
 
@@ -160,8 +169,10 @@ omalt-tab/
 │   ├── HeaderBar.qml        # Header with title and keyboard shortcut hints
 │   └── FooterBar.qml        # Selected window title, class, and metadata footer
 ├── js/                      # Decoupled business and navigation logic
+│   ├── Config.js            # Central configuration, devMode flag, and feature flags
 │   ├── WindowModel.js       # Hyprland JSON snapshot parser & coordinate scaler
-│   └── Navigation.js        # MRU cycler, spatial navigation, & jump resolvers
+│   ├── Navigation.js        # MRU cycler, spatial navigation, & jump resolvers
+│   └── Icons.js             # FreeDesktop icon candidate resolver and cache
 ├── hypr/                    # Compositor integration
 │   ├── bindings.lua         # Hyprland submap configuration with Alt release timer
 │   └── omalt-tab-client     # Sub-millisecond UNIX domain socket client

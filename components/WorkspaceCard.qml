@@ -11,6 +11,7 @@ Rectangle {
     property int cardWidth: 280
     property int cardHeight: 220
     property var appLibrary: null
+    property bool devMode: false
 
     signal windowClicked(string address)
     signal workspaceClicked(int wsId)
@@ -18,14 +19,14 @@ Rectangle {
     readonly property string letter: (wsData && wsData.letter) ? wsData.letter : "A"
     readonly property string name: (wsData && wsData.name) ? wsData.name : "1"
     readonly property var windows: (wsData && wsData.windows) ? wsData.windows : []
+    readonly property bool hasWindows: windows && windows.length > 0
     readonly property bool isActive: (wsData && wsData.isActive) ? true : false
     readonly property int wsId: (wsData && wsData.id) ? wsData.id : 1
 
     // Check if this workspace or any of its windows is selected
     readonly property bool isSelectedWorkspace: root.wsId === root.selectedWorkspaceId
     readonly property bool containsSelected: {
-        if (isSelectedWorkspace && (!windows || windows.length === 0)) return true;
-        if (!windows || windows.length === 0) return false;
+        if (!hasWindows) return isSelectedWorkspace;
         for (var i = 0; i < windows.length; i++) {
             if (windows[i].address === selectedAddress) return true;
         }
@@ -107,8 +108,8 @@ Rectangle {
                 Text {
                     id: txtCount
                     anchors.centerIn: parent
-                    text: root.windows.length === 0 ? "empty" : (root.windows.length + " win")
-                    color: root.windows.length === 0 ? Color.muted : Color.foreground
+                    text: root.hasWindows ? (root.windows.length + " win") : "empty"
+                    color: root.hasWindows ? Color.foreground : Color.muted
                     font.family: Style.font.resolvedFamily || Style.font.family
                     font.pixelSize: Style.font.caption
                 }
@@ -138,7 +139,7 @@ Rectangle {
             // Empty State
             Item {
                 anchors.fill: parent
-                visible: root.windows.length === 0
+                visible: !root.hasWindows
 
                 Column {
                     anchors.centerIn: parent
@@ -162,7 +163,9 @@ Rectangle {
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
-                        text: root.containsSelected ? "Release Alt to switch" : ("Press [" + root.letter + "] to switch")
+                        text: root.containsSelected
+                            ? (root.devMode ? "Press Enter to switch" : "Release Alt to switch")
+                            : ("Press [" + root.letter + "] to switch")
                         color: root.containsSelected ? Color.foreground : Color.muted
                         font.family: Style.font.resolvedFamily || Style.font.family
                         font.pixelSize: Math.max(9, Math.min(11, Math.round(root.cardWidth / 26)))

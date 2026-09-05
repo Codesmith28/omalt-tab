@@ -10,14 +10,17 @@ UID_NUM := $(shell id -u)
 SOCKET := /run/user/$(UID_NUM)/omalt-tab.sock
 HYPR_BINDINGS := $(HOME)/.config/hypr/bindings.lua
 
-.PHONY: all help test validate check dev link install update uninstall restart status clean-legacy
+.PHONY: all help test validate check dev prod mode-dev mode-prod link install update uninstall restart status clean-legacy
 
 all: help
 
 help:
 	@echo "omalt-tab management targets:"
-	@echo "  make dev         - Symlink this repo to ~/.config/omarchy/plugins and enable (ideal for development)"
+	@echo "  make dev         - Replace installed plugin with Dev Mode plugin (press Enter to switch)"
+	@echo "  make prod        - Replace installed plugin with Production Mode plugin (release Alt to switch)"
 	@echo "  make install     - Copy files to ~/.config/omarchy/plugins, enable plugin, and restart shell"
+	@echo "  make mode-dev    - Set devMode = true in js/Config.js"
+	@echo "  make mode-prod   - Set devMode = false in js/Config.js"
 	@echo "  make update      - Sync latest changes and reload shell"
 	@echo "  make uninstall   - Disable plugin and remove from ~/.config/omarchy/plugins"
 	@echo "  make validate    - Validate plugin manifest, shell scripts, and run logic tests"
@@ -49,7 +52,30 @@ check: test
 	fi
 	@echo "✓ All checks and tests passed!"
 
-dev: link
+set-mode-%:
+	@echo "--> Setting devMode = $* in js/Config.js..."
+	@sed -i 's/^var devMode = .*/var devMode = $*;/' js/Config.js
+	@echo "✓ Mode set to $* in configuration."
+
+mode-dev: set-mode-true
+mode-prod: set-mode-false
+
+dev: mode-dev link
+	@echo "=========================================================="
+	@echo "✓ Dev Mode plugin active at $(TARGET_DIR)!"
+	@echo "  • Switcher stays open after releasing Alt"
+	@echo "  • Press Enter (Return) to switch to the selected task"
+	@echo "  • Press Esc to cancel"
+	@echo "  • Header displays DEV badge and Footer shows 'Press Enter to switch'"
+	@echo "  • Run 'make prod' to restore standard release-to-switch behavior"
+	@echo "=========================================================="
+
+prod: mode-prod install
+	@echo "=========================================================="
+	@echo "✓ Production Mode plugin active at $(TARGET_DIR)!"
+	@echo "  • Standard behavior: releasing Alt switches to task immediately"
+	@echo "  • Run 'make dev' to switch back to dev mode"
+	@echo "=========================================================="
 
 link: check
 	@echo "--> Setting up development symlink..."
@@ -66,7 +92,7 @@ link: check
 	@$(MAKE) restart
 	@echo "✓ Development setup complete. Code edits in $(PROJECT_DIR) are now live on shell restart."
 
-install: check
+install: mode-prod check
 	@echo "--> Installing omalt-tab to $(TARGET_DIR)..."
 	@mkdir -p "$(TARGET_DIR)"
 	@chmod +x hypr/omalt-tab-client
@@ -92,10 +118,9 @@ install: check
 
 setup-integration:
 	@mkdir -p "$(HOME)/.local/bin"
-	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab-client"
-	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/omalt-tab"
-	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/hyprswitch-client"
-	@ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/hyprswitch"
+	@for name in omalt-tab-client omalt-tab hyprswitch-client hyprswitch; do \
+		ln -sf "$(TARGET_DIR)/hypr/omalt-tab-client" "$(HOME)/.local/bin/$$name"; \
+	done
 	@if command -v omarchy >/dev/null 2>&1; then \
 		echo "--> Ensuring plugin is enabled..."; \
 		omarchy plugin enable "$(PLUGIN_ID)" >/dev/null 2>&1 || true; \
@@ -145,6 +170,12 @@ restart:
 
 status:
 	@echo "=== omalt-tab Status ==="
+	@echo -n "Active Mode: "
+	@if grep -qs "var devMode = true;" "$(TARGET_DIR)/js/Config.js" "$(PROJECT_DIR)/js/Config.js"; then \
+		echo "DEV MODE (Enter required to switch tasks; switcher stays open)"; \
+	else \
+		echo "PRODUCTION MODE (Release Alt to switch tasks immediately)"; \
+	fi
 	@echo -n "Install path: "
 	@if [ -L "$(TARGET_DIR)" ]; then \
 		echo "$(TARGET_DIR) -> $$(readlink -f $(TARGET_DIR)) (development symlink)"; \

@@ -340,4 +340,33 @@ const nav = loadModule("js/Navigation.js");
   );
 }
 
+// Test 6: Config.js devMode flag and options
+{
+  const config = loadModule("js/Config.js");
+  assert(typeof config.isDevMode === "function", "isDevMode should be a function");
+  assert(typeof config.requireEnterToSwitch === "function", "requireEnterToSwitch should be a function");
+  assert(typeof config.isDebugLogging === "function", "isDebugLogging should be a function");
+  assert(typeof config.isDevBadgeVisible === "function", "isDevBadgeVisible should be a function");
+
+  // In default repo state, verify getter consistency
+  const initialMode = config.isDevMode();
+  assert.strictEqual(config.requireEnterToSwitch(), initialMode, "requireEnterToSwitch must match devMode");
+
+  // When devMode is true: enter must be required to switch task
+  config.devMode = true;
+  assert.strictEqual(config.isDevMode(), true, "isDevMode() should return true when devMode = true");
+  assert.strictEqual(config.requireEnterToSwitch(), true, "requireEnterToSwitch() must return true in dev mode");
+  assert.strictEqual(config.isDebugLogging(), true, "isDebugLogging() must return true in dev mode");
+  assert.strictEqual(config.isDevBadgeVisible(), true, "isDevBadgeVisible() must return true in dev mode");
+
+  // When devMode is false: release Alt switches immediately (requireEnter is false)
+  config.devMode = false;
+  assert.strictEqual(config.isDevMode(), false, "isDevMode() should return false when devMode = false");
+  assert.strictEqual(config.requireEnterToSwitch(), false, "requireEnterToSwitch() must return false in prod mode");
+
+  console.log(
+    "  ✓ Config.js correctly gates requireEnterToSwitch, debugLogging, and dev badges based on devMode",
+  );
+}
+
 console.log("All unit tests passed successfully!");

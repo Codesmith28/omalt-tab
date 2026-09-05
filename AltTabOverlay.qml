@@ -6,12 +6,22 @@ import Quickshell.Io
 import qs.Commons
 import qs.Ui
 import "components"
+import "js/Config.js" as Config
 import "js/WindowModel.js" as WindowModel
 import "js/Navigation.js" as Navigation
 import "js/Icons.js" as Icons
 
 Item {
     id: root
+
+    // Dev Mode flag
+    readonly property bool devMode: Config.devMode || Quickshell.env("OMALT_TAB_DEV") === "1"
+
+    function logDebug(msg) {
+        if (root.devMode) {
+            console.log("[omalt-tab:dev] " + msg);
+        }
+    }
 
     // Omarchy shell-injected properties
     property string omarchyPath: Quickshell.env("OMARCHY_PATH")
@@ -109,6 +119,7 @@ Item {
     function down()  { root.navigateDirection("down"); }
 
     function handleCommand(cmd) {
+        root.logDebug("Socket command received: " + cmd);
         var parts = cmd.trim().split(" ");
         var action = parts[0].toLowerCase();
         var arg = parts.length > 1 ? parts[1].toLowerCase() : "";
@@ -169,65 +180,61 @@ Item {
         }
     }
 
+    function refreshSnapshot() {
+        if (!root.opened && !snapshotFetcher.running) {
+            snapshotFetcher.running = true;
+        }
+    }
+
     // Keep snapshot cache fresh in background whenever active window or toplevel list changes
     Connections {
         target: ToplevelManager
-        function onActiveToplevelChanged() {
-            if (!root.opened && !snapshotFetcher.running) {
-                snapshotFetcher.running = true;
-            }
-        }
+        function onActiveToplevelChanged() { root.refreshSnapshot(); }
     }
 
     Connections {
         target: ToplevelManager.toplevels
-        function onValuesChanged() {
-            if (!root.opened && !snapshotFetcher.running) {
-                snapshotFetcher.running = true;
-            }
-        }
+        function onValuesChanged() { root.refreshSnapshot(); }
     }
 
     // Hyprland Atomic Focus Dispatcher
     Process {
         id: focusDispatcher
-        function focus(address) {
-            command = ["hyprctl", "dispatch", "(function() hl.dispatch(hl.dsp.focus({ window = \"address:" + address + "\" })); return hl.dsp.submap(\"reset\") end)()"];
+        function dispatch(expr) {
+            command = ["hyprctl", "dispatch", expr];
             running = false;
             running = true;
+        }
+        function focus(address) {
+            dispatch("(function() hl.dispatch(hl.dsp.focus({ window = \"address:" + address + "\" })); return hl.dsp.submap(\"reset\") end)()");
         }
         function switchWorkspace(id) {
-            command = ["hyprctl", "dispatch", "(function() hl.dispatch(hl.dsp.focus({ workspace = \"" + id + "\" })); return hl.dsp.submap(\"reset\") end)()"];
-            running = false;
-            running = true;
+            dispatch("(function() hl.dispatch(hl.dsp.focus({ workspace = \"" + id + "\" })); return hl.dsp.submap(\"reset\") end)()");
         }
         function resetSubmap() {
-            command = ["hyprctl", "dispatch", "hl.dsp.submap(\"reset\")"];
-            running = false;
-            running = true;
+            dispatch("hl.dsp.submap(\"reset\")");
         }
     }
 
+    function initialIndexForOffset(len, offset) {
+        if (len <= 1) return 0;
+        return (offset > 0) ? 1 : (len - 1);
+    }
+
     function openWithOffset(offset) {
+        root.logDebug("Opening switcher with offset: " + offset);
         root.pendingCommit = false;
         root.pendingOffset = offset;
         root.selectedWorkspaceId = -1;
-        if (root.mruList && root.mruList.length > 0) {
-            root.isOpening = false;
-            if (root.mruList.length === 1) {
-                root.selectedIndex = 0;
-            } else {
-                root.selectedIndex = (offset > 0) ? 1 : (root.mruList.length - 1);
-            }
+        var hasMru = root.mruList && root.mruList.length > 0;
+        root.isOpening = !hasMru;
+        if (hasMru) {
+            root.selectedIndex = initialIndexForOffset(root.mruList.length, offset);
             root.updateSelectionFromIndex();
             root.opened = true;
-            snapshotFetcher.running = false;
-            snapshotFetcher.running = true;
-        } else {
-            root.isOpening = true;
-            snapshotFetcher.running = false;
-            snapshotFetcher.running = true;
         }
+        snapshotFetcher.running = false;
+        snapshotFetcher.running = true;
     }
 
     function populateSnapshot(data) {
@@ -257,8 +264,7 @@ Item {
 
         if (root.pendingCommit) {
             root.pendingCommit = false;
-            var targetIdx = (flatMru.length === 1) ? 0 : ((root.pendingOffset > 0) ? 1 : (flatMru.length - 1));
-            var targetAddr = flatMru[targetIdx].address;
+            var targetAddr = flatMru[root.initialIndexForOffset(flatMru.length, root.pendingOffset)].address;
             root.opened = false;
             focusDispatcher.focus(targetAddr);
             return;
@@ -266,11 +272,7 @@ Item {
 
         if (root.isOpening) {
             root.isOpening = false;
-            if (flatMru.length === 1) {
-                root.selectedIndex = 0;
-            } else {
-                root.selectedIndex = (root.pendingOffset > 0) ? 1 : (flatMru.length - 1);
-            }
+            root.selectedIndex = root.initialIndexForOffset(flatMru.length, root.pendingOffset);
             root.updateSelectionFromIndex();
             root.opened = true;
         } else if (root.opened) {
@@ -347,26 +349,17 @@ Item {
             }
         }
 
-        if (wsData) {
-            root.selectedClientData = {
-                isWorkspace: true,
-                isEmpty: (!wsData.windows || wsData.windows.length === 0),
-                workspaceId: wsData.id,
-                wsLetter: wsData.letter,
-                title: "Workspace " + wsData.name + (wsData.windows && wsData.windows.length > 0 ? "" : " (Empty)"),
-                clientClass: "workspace"
-            };
-            root.ensureWorkspaceVisible(wsIdx);
-        } else {
-            root.selectedClientData = {
-                isWorkspace: true,
-                isEmpty: true,
-                workspaceId: wsId,
-                wsLetter: "",
-                title: "Workspace " + wsId + " (Empty)",
-                clientClass: "workspace"
-            };
-        }
+        var isEmpty = !wsData || (!wsData.windows || wsData.windows.length === 0);
+        var wsName = wsData ? wsData.name : wsId;
+        root.selectedClientData = {
+            isWorkspace: true,
+            isEmpty: isEmpty,
+            workspaceId: wsId,
+            wsLetter: wsData ? wsData.letter : "",
+            title: "Workspace " + wsName + (isEmpty ? " (Empty)" : ""),
+            clientClass: "workspace"
+        };
+        if (wsIdx >= 0) root.ensureWorkspaceVisible(wsIdx);
     }
 
     function selectAddress(address) {
@@ -418,15 +411,18 @@ Item {
         interval: 120
         repeat: false
         onTriggered: {
-            snapshotFetcher.running = false;
-            snapshotFetcher.running = true;
+            if (!snapshotFetcher.running) {
+                snapshotFetcher.running = true;
+            }
         }
     }
 
     function commit() {
-        root.isOpening = false;
+        root.logDebug("Commit requested (selectedAddress=" + root.selectedAddress + ", wsId=" + root.selectedWorkspaceId + ")");
         if (root.opened) {
             root.opened = false;
+            root.isOpening = false;
+            root.pendingCommit = false;
             if (root.selectedAddress && root.selectedAddress.length > 0) {
                 var addr = root.selectedAddress;
                 focusDispatcher.focus(addr);
@@ -448,13 +444,20 @@ Item {
             } else if (root.selectedWorkspaceId > 0) {
                 focusDispatcher.switchWorkspace(root.selectedWorkspaceId);
                 refreshTimer.restart();
+            } else {
+                focusDispatcher.resetSubmap();
             }
-        } else if (snapshotFetcher.running) {
+        } else if (root.isOpening) {
+            root.isOpening = false;
             root.pendingCommit = true;
+        } else {
+            root.pendingCommit = false;
+            focusDispatcher.resetSubmap();
         }
     }
 
     function cancel() {
+        root.logDebug("Cancel requested");
         root.isOpening = false;
         root.pendingCommit = false;
         root.opened = false;
@@ -534,15 +537,13 @@ Item {
                     var ch = event.text.toLowerCase();
                     if ("asdfghjkl;".indexOf(ch) !== -1) {
                         root.jumpWorkspace(ch);
-                    } else if (ch >= '1' && ch <= '9') {
-                        root.jumpWindow(parseInt(ch));
                     }
                 }
                 event.accepted = true;
             }
 
             Keys.onReleased: event => {
-                if (event.key === Qt.Key_Alt || event.key === Qt.Key_AltGr) {
+                if (!root.devMode && (event.key === Qt.Key_Alt || event.key === Qt.Key_AltGr)) {
                     root.commit();
                     event.accepted = true;
                 }
@@ -603,6 +604,7 @@ Item {
                     id: headerBar
                     width: parent.width
                     title: "OMALT-TAB"
+                    devMode: root.devMode
                 }
 
                 Flickable {
@@ -633,6 +635,7 @@ Item {
                                     cardWidth: container.dynamicCardWidth
                                     cardHeight: container.dynamicCardHeight
                                     appLibrary: root.appLibrary
+                                    devMode: root.devMode
                                     onWindowClicked: addr => {
                                         root.selectAddress(addr);
                                         root.commit();
@@ -652,6 +655,7 @@ Item {
                     width: parent.width
                     selectedClientData: root.selectedClientData
                     appLibrary: root.appLibrary
+                    devMode: root.devMode
                 }
             }
         }

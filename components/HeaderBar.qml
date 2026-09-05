@@ -6,6 +6,7 @@ Item {
     id: root
 
     property string title: "OMALT-TAB"
+    property bool devMode: false
 
     implicitHeight: Math.max(34, Style.space(34))
     implicitWidth: Math.max(leftRow.implicitWidth + 20, 260)
@@ -42,6 +43,43 @@ Item {
             font.pixelSize: Style.font.title
             font.bold: true
             font.letterSpacing: 1.2
+        }
+
+        // Dev Mode Tag (Visible on main card header when devMode is active)
+        Rectangle {
+            visible: root.devMode
+            anchors.verticalCenter: parent.verticalCenter
+            height: Math.max(20, Style.space(22))
+            width: devTagRow.implicitWidth + 14
+            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            color: Util.alpha(Color.accent, 0.20)
+            border.width: 1
+            border.color: Color.accent
+
+            Row {
+                id: devTagRow
+                anchors.centerIn: parent
+                spacing: 5
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "󰅩"
+                    color: Color.accent
+                    font.family: Style.font.resolvedFamily || Style.font.family
+                    font.pixelSize: Style.font.caption
+                }
+
+                Text {
+                    id: txtDev
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "DEV MODE"
+                    color: Color.accent
+                    font.family: Style.font.resolvedFamily || Style.font.family
+                    font.pixelSize: Style.font.caption
+                    font.bold: true
+                    font.letterSpacing: 0.8
+                }
+            }
         }
     }
 
