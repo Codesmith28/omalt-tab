@@ -19,10 +19,19 @@ if command -v omarchy >/dev/null 2>&1; then
   omarchy plugin enable "${PLUGIN_ID}" >/dev/null 2>&1 || true
 fi
 
-# Inject binding loader into Hyprland bindings.lua if missing
+# Inject binding loader into Hyprland bindings.lua with user consent if missing
 if [ -f "${HYPR_BINDINGS}" ] && ! grep -q "${PLUGIN_ID}" "${HYPR_BINDINGS}"; then
-  echo "--> Adding omalt-tab binding loader to ${HYPR_BINDINGS}..."
-  cat << LUA >> "${HYPR_BINDINGS}"
+  response="n"
+  if [ -t 0 ] || [ -e /dev/tty ]; then
+    echo ""
+    echo "Would you like omalt-tab to add its keybinding loader to your Hyprland configuration?"
+    echo "Target file: ${HYPR_BINDINGS}"
+    read -r -p "Add keybindings? [y/N] " response </dev/tty || response="n"
+  fi
+
+  if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    echo "--> Adding omalt-tab binding loader to ${HYPR_BINDINGS}..."
+    cat << LUA >> "${HYPR_BINDINGS}"
 
 -- >>> omalt-tab >>>
 local omalt_tab_binding = (os.getenv("HOME") or "") .. "/.config/omarchy/plugins/${PLUGIN_ID}/hypr/bindings.lua"
@@ -30,6 +39,11 @@ local f_omalt = io.open(omalt_tab_binding, "r")
 if f_omalt then f_omalt:close(); dofile(omalt_tab_binding) end
 -- <<< omalt-tab <<<
 LUA
+    echo "✓ Keybinding loader added."
+  else
+    echo "--> Skipped updating ${HYPR_BINDINGS}."
+    echo "    To add keybindings manually, please refer to the README."
+  fi
 fi
 
 echo "✓ Integration setup complete."
