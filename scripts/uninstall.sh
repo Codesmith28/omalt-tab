@@ -19,8 +19,7 @@ fi
 
 # Clean integration artifacts
 echo "--> Cleaning integration artifacts..."
-rm -f "${HOME}/.local/bin/omalt-tab-client" "${HOME}/.local/bin/omalt-tab" \
-  "${HOME}/.local/bin/hyprswitch-client" "${HOME}/.local/bin/hyprswitch"
+rm -f "${HOME}/.local/bin/omalt-tab-client" "${HOME}/.local/bin/omalt-tab"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
