@@ -203,7 +203,6 @@ end
 | `make validate` | Runs unit tests, manifest validation, client bash syntax, and lua syntax checks |
 | `make restart` | Restarts Omarchy shell and reloads keybindings |
 | `make update` | Syncs latest code changes and reloads the active environment |
-| `make clean-legacy` | Detects and cleans up obsolete switcher services or autostarts |
 | `make uninstall` | Runs `omarchy plugin remove`, cleans keybindings, and removes helper symlinks |
 
 ---

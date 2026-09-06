@@ -51,11 +51,3 @@ if [ -S "${SOCKET}" ]; then
 else
   echo "Inactive / not created yet"
 fi
-
-echo -n "Legacy Hyprswitch: "
-if systemctl --user is-active --quiet hyprswitch.service 2>/dev/null || \
-   pgrep -f 'hypr/switcher/shell\.qml' >/dev/null 2>&1; then
-  echo "WARNING: Legacy hyprswitch service/process is active! Run 'make clean-legacy' to disable."
-else
-  echo "Inactive / disabled (clean)"
-fi

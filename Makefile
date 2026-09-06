@@ -7,7 +7,7 @@ PLUGINS_DIR := $(HOME)/.config/omarchy/plugins
 TARGET_DIR := $(PLUGINS_DIR)/$(PLUGIN_ID)
 PROJECT_DIR := $(shell pwd -P)
 
-.PHONY: all help test validate check dev prod mode-dev mode-prod link install update uninstall restart status clean-legacy
+.PHONY: all help test validate check dev prod mode-dev mode-prod link install update uninstall restart status
 
 all: help
 
@@ -24,7 +24,6 @@ help:
 	@echo "  make test        - Run unit tests for window model and navigation"
 	@echo "  make restart     - Restart the Omarchy shell"
 	@echo "  make status      - Display installation state, plugin status, and socket health"
-	@echo "  make clean-legacy- Disable old standalone switcher in ~/.config/hypr/autostart.lua"
 
 test:
 	@echo "--> Running unit tests..."
@@ -99,6 +98,3 @@ restart:
 
 status:
 	@scripts/status.sh
-
-clean-legacy:
-	@scripts/clean-legacy.sh
