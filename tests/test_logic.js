@@ -563,4 +563,50 @@ const nav = loadModule("js/Navigation.js");
   console.log("  ✓ On workspace 4 with zero windows, all workspaces 1..4 are generated with correct letters");
 }
 
+// Test 11: Security check: FooterBar.qml explicitly sets textFormat: Text.PlainText to prevent rich-text injection
+{
+  const footerQml = fs.readFileSync("components/FooterBar.qml", "utf8");
+
+  // Extract windowTitle Text component definition
+  const match = footerQml.match(/Text\s*\{[^}]*id:\s*windowTitle[^}]*\}/s);
+  assert(match, "FooterBar.qml should contain windowTitle Text item");
+  assert(
+    /textFormat\s*:\s*Text\.PlainText/.test(match[0]),
+    "windowTitle Text item in FooterBar.qml must explicitly set textFormat: Text.PlainText to prevent rich-text injection"
+  );
+
+  // Verify WindowModel retains markup titles intact as plain strings without corruption
+  const markupTitle = '<img src="http://127.0.0.1:9999/test.png"> Testing Markup <b>Bold</b>';
+  const mockSnapshot = {
+    clients: [
+      {
+        address: "0x99",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [100, 100],
+        size: [800, 600],
+        title: markupTitle,
+        class: "brave-browser",
+        focusHistoryID: 0,
+      },
+    ],
+    workspaces: [{ id: 1, name: "1" }],
+    monitors: [
+      {
+        id: 0,
+        name: "eDP-1",
+        width: 1920,
+        height: 1080,
+        x: 0,
+        y: 0,
+        activeWorkspace: { id: 1 },
+      },
+    ],
+  };
+  const parsed = wm.parseSnapshot(mockSnapshot, ["a"]);
+  assert.strictEqual(parsed.workspaces[0].windows[0].title, markupTitle);
+
+  console.log("  ✓ FooterBar.qml explicitly sets textFormat: Text.PlainText on windowTitle sink");
+}
+
 console.log("All unit tests passed successfully!");
