@@ -111,6 +111,7 @@ Rectangle {
             Text {
                 id: windowTitle
                 width: parent.width
+                textFormat: Text.PlainText
                 text: {
                     if (!root.selectedClientData) return "No window selected";
                     if (root.selectedClientData.isWorkspace) {
