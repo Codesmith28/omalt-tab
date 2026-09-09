@@ -229,17 +229,37 @@ Item {
     // Hyprland Atomic Focus Dispatcher
     Process {
         id: focusDispatcher
+
         function dispatch(expr) {
             command = ["hyprctl", "dispatch", expr];
             running = false;
             running = true;
         }
-        function focus(address) {
-            dispatch("(function() hl.dispatch(hl.dsp.focus({ window = \"address:" + address + "\" })); return hl.dsp.submap(\"reset\") end)()");
+
+        // Lua expression to raise window to top of z-order (alterzorder top with fallback)
+        function bringToTopExpr(address) {
+            return "pcall(function() hl.dispatch(hl.dsp.window.alter_zorder({ mode = \"top\", window = \"address:" + address + "\" })) end); " +
+                   "pcall(function() hl.dispatch(hl.dsp.window.bring_to_top()) end)";
         }
+
+        function bringToTop(address) {
+            if (!address || !/^0x[0-9a-fA-F]+$/.test(address)) return;
+            dispatch("(function() " + bringToTopExpr(address) + " end)()");
+        }
+
+        function focus(address) {
+            if (!address || !/^0x[0-9a-fA-F]+$/.test(address)) return;
+            dispatch("(function() " +
+                "hl.dispatch(hl.dsp.focus({ window = \"address:" + address + "\" })); " +
+                bringToTopExpr(address) + "; " +
+                "return hl.dsp.submap(\"reset\") " +
+            "end)()");
+        }
+
         function switchWorkspace(id) {
             dispatch("(function() hl.dispatch(hl.dsp.focus({ workspace = \"" + id + "\" })); return hl.dsp.submap(\"reset\") end)()");
         }
+
         function resetSubmap() {
             dispatch("hl.dsp.submap(\"reset\")");
         }
