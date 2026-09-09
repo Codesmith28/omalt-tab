@@ -236,10 +236,22 @@ Item {
             running = true;
         }
 
-        // Lua expression to raise window to top of z-order (alterzorder top with fallback)
+        // Lua expression to raise window to top of z-order (handles both floating and fullscreen windows)
         function bringToTopExpr(address) {
-            return "pcall(function() hl.dispatch(hl.dsp.window.alter_zorder({ mode = \"top\", window = \"address:" + address + "\" })) end); " +
-                   "pcall(function() hl.dispatch(hl.dsp.window.bring_to_top()) end)";
+            return "pcall(function() " +
+                "local w = (hl.get_window and hl.get_window(\"address:" + address + "\")); " +
+                "if w and w.fullscreen and w.fullscreen > 0 and hl.get_windows then " +
+                    "local wsId = w.workspace and w.workspace.id; " +
+                    "for _, other in ipairs(hl.get_windows()) do " +
+                        "if other.address ~= w.address and other.workspace and other.workspace.id == wsId and other.floating then " +
+                            "pcall(function() hl.dispatch(hl.dsp.window.alter_zorder({ mode = \"bottom\", window = \"address:\" .. other.address })) end); " +
+                        "end " +
+                    "end " +
+                "else " +
+                    "pcall(function() hl.dispatch(hl.dsp.window.alter_zorder({ mode = \"top\", window = \"address:" + address + "\" })) end); " +
+                    "pcall(function() hl.dispatch(hl.dsp.window.bring_to_top()) end); " +
+                "end " +
+            "end)";
         }
 
         function bringToTop(address) {
