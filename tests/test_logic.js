@@ -609,4 +609,149 @@ const nav = loadModule("js/Navigation.js");
   console.log("  ✓ FooterBar.qml explicitly sets textFormat: Text.PlainText on windowTitle sink");
 }
 
+// Test 12: Multi-monitor setups: active monitor resolution, coordinate normalization, and per-workspace mapping
+{
+  // 1. findActiveMonitor
+  const monitorsList = [
+    { id: 0, name: "eDP-1", width: 1920, height: 1080, x: 0, y: 0, focused: false, activeWorkspace: { id: 1 } },
+    { id: 1, name: "DP-1", width: 2560, height: 1440, x: 1920, y: 0, focused: true, activeWorkspace: { id: 2 } },
+  ];
+  const activeMon = wm.findActiveMonitor(monitorsList);
+  assert.strictEqual(activeMon.name, "DP-1", "Focused monitor DP-1 should be active");
+
+  // Fallback when none focused
+  const noFocused = [
+    { id: 0, name: "eDP-1", focused: false },
+    { id: 1, name: "DP-1", focused: false },
+  ];
+  assert.strictEqual(wm.findActiveMonitor(noFocused).name, "eDP-1", "Should fallback to first monitor");
+  assert.strictEqual(wm.findActiveMonitor([]).width, 1920, "Should return fallback object for empty array");
+
+  // 2. createMonitorMap
+  const map = wm.createMonitorMap(monitorsList);
+  assert.strictEqual(map["eDP-1"].id, 0);
+  assert.strictEqual(map[0].name, "eDP-1");
+  assert.strictEqual(map["DP-1"].id, 1);
+  assert.strictEqual(map[1].name, "DP-1");
+
+  // 3. parseSnapshot with multiple monitors and spatial coordinate normalization
+  const multiMonSnapshot = {
+    monitors: monitorsList,
+    workspaces: [
+      { id: 1, name: "1", monitor: "eDP-1", monitorID: 0 },
+      { id: 2, name: "2", monitor: "DP-1", monitorID: 1 },
+    ],
+    clients: [
+      {
+        address: "0x11",
+        mapped: true,
+        workspace: { id: 1 },
+        monitor: 0,
+        at: [100, 100],
+        size: [800, 600],
+        title: "Terminal on eDP-1",
+        class: "foot",
+        focusHistoryID: 1,
+      },
+      {
+        address: "0x22",
+        mapped: true,
+        workspace: { id: 2 },
+        monitor: 1,
+        // Window is located on monitor DP-1 at x: 2120 (which is 200px from left edge of DP-1: 2120 - 1920 = 200)
+        at: [2120, 140],
+        size: [1280, 800],
+        title: "Browser on DP-1",
+        class: "brave-browser",
+        focusHistoryID: 0,
+      },
+    ],
+  };
+
+  const parsed = wm.parseSnapshot(multiMonSnapshot, ["a", "s"]);
+  assert.strictEqual(parsed.activeMonitorName, "DP-1", "Active monitor name should be DP-1");
+  assert.strictEqual(parsed.workspaces.length, 2, "Should have 2 workspaces");
+
+  // Workspace 1 on eDP-1
+  assert.strictEqual(parsed.workspaces[0].monitorName, "eDP-1");
+  assert.strictEqual(parsed.workspaces[0].monitorId, 0);
+  assert.strictEqual(parsed.workspaces[0].isActive, false);
+
+  // Workspace 2 on DP-1 (active monitor's workspace)
+  assert.strictEqual(parsed.workspaces[1].monitorName, "DP-1");
+  assert.strictEqual(parsed.workspaces[1].monitorId, 1);
+  assert.strictEqual(parsed.workspaces[1].isActive, true);
+
+  // Check window normalization on DP-1:
+  // NormX should be (2120 - 1920) / 2560 = 200 / 2560 = 0.078125, NOT clamped or based on eDP-1
+  const winDP1 = parsed.workspaces[1].windows[0];
+  const expectedNormX = (2120 - 1920) / 2560;
+  assert(Math.abs(winDP1.normX - expectedNormX) < 0.001, `normX on DP-1 should be ~${expectedNormX}, got ${winDP1.normX}`);
+  const expectedNormW = 1280 / 2560; // 0.5
+  assert(Math.abs(winDP1.normW - expectedNormW) < 0.001, `normW on DP-1 should be ~${expectedNormW}, got ${winDP1.normW}`);
+
+  console.log("  ✓ Multi-monitor setups resolve active monitor and normalize window coordinates per monitor bounds");
+}
+
+// Test 13: AltTabOverlay.qml multi-monitor screen binding and pinned window protection
+{
+  const overlayQml = fs.readFileSync("AltTabOverlay.qml", "utf8");
+
+  // Verify PanelWindow screen binding
+  assert(
+    /screen\s*:\s*root\.resolveActiveScreen\(root\.activeMonitorName\)/.test(overlayQml),
+    "PanelWindow should bind screen to root.resolveActiveScreen(root.activeMonitorName)"
+  );
+
+  // Verify resolveActiveScreen implementation
+  assert(
+    /function\s+resolveActiveScreen\s*\(\s*monitorName\s*\)/.test(overlayQml),
+    "AltTabOverlay.qml should define resolveActiveScreen helper function"
+  );
+
+  // Verify bringToTopExpr preserves pinned windows
+  assert(
+    overlayQml.includes("and not other.pinned"),
+    "bringToTopExpr must preserve pinned/always-on-top windows (and not other.pinned)"
+  );
+
+  console.log("  ✓ AltTabOverlay.qml binds screen to active monitor and protects pinned windows");
+}
+
+// Test 14: AltTabOverlay.qml bringToTopExpr handles maximized tiled windows and lowers floating windows
+{
+  const overlayQml = fs.readFileSync("AltTabOverlay.qml", "utf8");
+
+  // Verify that floating windows are raised with alter_zorder top
+  assert(
+    overlayQml.includes("if w.floating then"),
+    "bringToTopExpr should detect floating windows to raise them"
+  );
+
+  // Verify maximized tiled window detection (fullscreen, fullscreen_client, or single tiled window)
+  assert(
+    overlayQml.includes("local isMaximized = (w.fullscreen and w.fullscreen > 0)"),
+    "bringToTopExpr should detect fullscreen or client-fullscreen or single tiled windows"
+  );
+  assert(
+    overlayQml.includes("or (tiledCount <= 1)"),
+    "bringToTopExpr should recognize a single tiled window occupying the workspace as maximized"
+  );
+
+  // Verify that un-fullscreened maximized tiled windows are promoted to maximized mode
+  assert(
+    overlayQml.includes('hl.dsp.window.fullscreen({ mode = \\"maximized\\", action = \\"set\\"'),
+    "bringToTopExpr should set maximized mode on tiled windows when floating windows are present"
+  );
+
+  // Verify floating unpinned windows are lowered behind the maximized window
+  assert(
+    overlayQml.includes('hl.dsp.window.alter_zorder({ mode = \\"bottom\\", window = \\"address:\\" .. other.address })'),
+    "bringToTopExpr should lower other unpinned floating windows to bottom"
+  );
+
+  console.log("  ✓ AltTabOverlay.qml bringToTopExpr lowers floating windows behind maximized tiled windows");
+}
+
 console.log("All unit tests passed successfully!");
+
