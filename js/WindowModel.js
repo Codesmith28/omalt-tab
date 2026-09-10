@@ -5,20 +5,36 @@
 var DEFAULT_HOME_ROW_LETTERS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"];
 
 /**
- * Parses raw JSON snapshot from Hyprland into structured workspaces and MRU windows.
- * Dynamically includes populated workspaces and any empty workspaces in between them,
- * allowing users to switch directly to empty workspaces.
- * @param {Object} data - Raw JSON with { clients, workspaces, monitors }
- * @param {Array<string>} wsLetters - Home row workspace letters array
- * @returns {Object} { workspaces: Array, mruList: Array, monitorAspect: number }
+ * Resolves the currently focused/active monitor from the monitor list,
+ * falling back to the first available monitor or sensible defaults.
+ * @param {Array<Object>} monitors - List of monitor objects from Hyprland
+ * @returns {Object} Active monitor object
  */
-function parseSnapshot(data, wsLetters) {
-    if (!data) return { workspaces: [], mruList: [], monitorAspect: 16 / 10 };
+function findActiveMonitor(monitors) {
+    if (!monitors || monitors.length === 0) {
+        return { width: 1920, height: 1200, x: 0, y: 0, name: "", id: 0, focused: true };
+    }
+    for (var m = 0; m < monitors.length; m++) {
+        if (monitors[m].focused) return monitors[m];
+    }
+    return monitors[0];
+}
 
-    var clients = data.clients || [];
-    var workspaces = data.workspaces || [];
-    var monitors = data.monitors || [];
-    var letters = (wsLetters && wsLetters.length > 0) ? wsLetters : DEFAULT_HOME_ROW_LETTERS;
+/**
+ * Builds an index map of monitors by both string name and integer ID.
+ * @param {Array<Object>} monitors - List of monitor objects from Hyprland
+ * @returns {Object} Key-value map of monitors indexed by name and id
+ */
+function createMonitorMap(monitors) {
+    var map = {};
+    if (!monitors) return map;
+    for (var m = 0; m < monitors.length; m++) {
+        var monObj = monitors[m];
+        if (monObj.name) map[monObj.name] = monObj;
+        if (monObj.id !== undefined) map[monObj.id] = monObj;
+    }
+    return map;
+}
 
 /**
  * Calculates the usable monitor bounding box by subtracting reserved areas
@@ -57,18 +73,60 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
     };
 }
 
-    var primaryMonitor = monitors.length > 0 ? monitors[0] : { width: 1920, height: 1200, x: 0, y: 0 };
-    var monitorMap = {};
-    for (var m = 0; m < monitors.length; m++) {
-        var monObj = monitors[m];
-        monitorMap[monObj.name] = monObj;
-        monitorMap[monObj.id] = monObj;
+/**
+ * Normalizes window coordinates and size relative to monitor bounds,
+ * clamping within [0, 1] range to prevent layout overflow.
+ * @param {Object} win - Client window object { at: [x, y], size: [w, h] }
+ * @param {Object} bounds - Usable monitor bounds { x, y, width, height }
+ * @returns {Object} { normX, normY, normW, normH }
+ */
+function normalizeWindowCoordinates(win, bounds) {
+    var b = bounds || { x: 0, y: 0, width: 1920, height: 1200 };
+    var at = win.at || [0, 0];
+    var size = win.size || [100, 100];
+    var normX = Math.max(0, Math.min(1, (at[0] - b.x) / b.width));
+    var normY = Math.max(0, Math.min(1, (at[1] - b.y) / b.height));
+    var normW = Math.max(0.05, Math.min(1 - normX, size[0] / b.width));
+    var normH = Math.max(0.05, Math.min(1 - normY, size[1] / b.height));
+    return {
+        normX: normX,
+        normY: normY,
+        normW: normW,
+        normH: normH
+    };
+}
+
+/**
+ * Parses raw JSON snapshot from Hyprland into structured workspaces and MRU windows.
+ * Dynamically includes populated workspaces and any empty workspaces in between them,
+ * allowing users to switch directly to empty workspaces.
+ * @param {Object} data - Raw JSON with { clients, workspaces, monitors }
+ * @param {Array<string>} wsLetters - Home row workspace letters array
+ * @returns {Object} { workspaces: Array, mruList: Array, activeMonitor: Object, activeMonitorName: string, monitorAspect: number }
+ */
+function parseSnapshot(data, wsLetters) {
+    if (!data) {
+        return {
+            workspaces: [],
+            mruList: [],
+            activeMonitor: null,
+            activeMonitorName: "",
+            monitorAspect: 16 / 10
+        };
     }
 
-    var primaryBounds = getUsableMonitorBounds(primaryMonitor, 1920, 1200);
-    var monWidth = primaryBounds.width;
-    var monHeight = primaryBounds.height;
-    var monitorAspect = primaryBounds.aspect;
+    var clients = data.clients || [];
+    var workspaces = data.workspaces || [];
+    var monitors = data.monitors || [];
+    var letters = (wsLetters && wsLetters.length > 0) ? wsLetters : DEFAULT_HOME_ROW_LETTERS;
+
+    var activeMonitor = findActiveMonitor(monitors);
+    var monitorMap = createMonitorMap(monitors);
+
+    var activeBounds = getUsableMonitorBounds(activeMonitor, 1920, 1200);
+    var monWidth = activeBounds.width;
+    var monHeight = activeBounds.height;
+    var monitorAspect = activeBounds.aspect;
 
     // Filter valid interactive windows
     var validClients = clients.filter(function(c) {
@@ -95,9 +153,9 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
         wsObjectMap[workspaces[w].id] = workspaces[w];
     }
 
-    // Identify active workspace ID
-    var activeWsId = (primaryMonitor.activeWorkspace && primaryMonitor.activeWorkspace.id > 0)
-        ? primaryMonitor.activeWorkspace.id
+    // Identify active workspace ID from active (focused) monitor
+    var activeWsId = (activeMonitor.activeWorkspace && activeMonitor.activeWorkspace.id > 0)
+        ? activeMonitor.activeWorkspace.id
         : -1;
 
     // Collect all workspace IDs that have windows, are active, or exist in Hyprland
@@ -141,8 +199,8 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
             visibleWorkspaces.push({
                 id: id,
                 name: "" + id,
-                monitor: primaryMonitor.name || "",
-                monitorID: primaryMonitor.id || 0,
+                monitor: activeMonitor.name || "",
+                monitorID: (activeMonitor.id !== undefined) ? activeMonitor.id : 0,
                 windows: 0
             });
         }
@@ -157,12 +215,8 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
         var curWs = visibleWorkspaces[wIdx];
         var curWid = curWs.id;
 
-        var wsMon = monitorMap[curWs.monitor] || monitorMap[curWs.monitorID] || primaryMonitor;
+        var wsMon = monitorMap[curWs.monitor] || monitorMap[curWs.monitorID] || activeMonitor;
         var monBounds = getUsableMonitorBounds(wsMon, monWidth, monHeight);
-        var curMonW = monBounds.width;
-        var curMonH = monBounds.height;
-        var curMonX = monBounds.x;
-        var curMonY = monBounds.y;
 
         // Letter assignment from home row keys: "asdfghjkl;" (1 -> a, 2 -> s...)
         var letter = (curWid >= 1 && curWid <= letters.length)
@@ -183,11 +237,7 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
         for (var k = 0; k < wsWindows.length; k++) {
             var win = wsWindows[k];
             var num = k + 1; // 1-based index
-
-            var normX = Math.max(0, Math.min(1, (win.at[0] - curMonX) / curMonW));
-            var normY = Math.max(0, Math.min(1, (win.at[1] - curMonY) / curMonH));
-            var normW = Math.max(0.05, Math.min(1 - normX, win.size[0] / curMonW));
-            var normH = Math.max(0.05, Math.min(1 - normY, win.size[1] / curMonH));
+            var coords = normalizeWindowCoordinates(win, monBounds);
 
             processedWindows.push({
                 address: win.address,
@@ -200,10 +250,10 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
                 wsIndex: num,
                 focusHistoryID: win.focusHistoryID,
                 floating: win.floating,
-                normX: normX,
-                normY: normY,
-                normW: normW,
-                normH: normH
+                normX: coords.normX,
+                normY: coords.normY,
+                normW: coords.normW,
+                normH: coords.normH
             });
         }
 
@@ -214,7 +264,10 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
             letterLower: letter.toLowerCase(),
             isActive: (curWid === activeWsId),
             isEmpty: (processedWindows.length === 0),
-            windows: processedWindows
+            windows: processedWindows,
+            monitorName: wsMon.name || "",
+            monitorId: (wsMon.id !== undefined) ? wsMon.id : 0,
+            aspect: monBounds.aspect
         });
     }
 
@@ -225,6 +278,8 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
     return {
         workspaces: processedWorkspaces,
         mruList: flatMru,
+        activeMonitor: activeMonitor,
+        activeMonitorName: activeMonitor.name || "",
         monitorAspect: monitorAspect
     };
 }

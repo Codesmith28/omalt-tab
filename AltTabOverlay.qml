@@ -64,6 +64,7 @@ Item {
 
     // Switcher state
     property bool opened: false
+    property string activeMonitorName: ""
     property var workspacesData: []
     property var mruList: []
     property int selectedIndex: 0
@@ -71,6 +72,21 @@ Item {
     property int selectedWorkspaceId: -1
     property var selectedClientData: null
     property real monitorAspect: 16 / 10
+
+    /**
+     * Resolves the Quickshell screen corresponding to the active monitor name,
+     * allowing the switcher overlay to attach to the monitor the user is currently working on.
+     */
+    function resolveActiveScreen(monitorName) {
+        if (!monitorName || !Quickshell.screens || Quickshell.screens.length === 0) return null;
+        for (var i = 0; i < Quickshell.screens.length; i++) {
+            var s = Quickshell.screens[i];
+            if (s && s.name === monitorName) {
+                return s;
+            }
+        }
+        return null;
+    }
 
     // Pending navigation offset while snapshot is loading
     property int pendingOffset: 1
@@ -229,17 +245,77 @@ Item {
     // Hyprland Atomic Focus Dispatcher
     Process {
         id: focusDispatcher
+
         function dispatch(expr) {
             command = ["hyprctl", "dispatch", expr];
             running = false;
             running = true;
         }
-        function focus(address) {
-            dispatch("(function() hl.dispatch(hl.dsp.focus({ window = \"address:" + address + "\" })); return hl.dsp.submap(\"reset\") end)()");
+
+        // Lua expression to raise window to top of z-order (handles floating, fullscreen, and maximized tiled windows)
+        function bringToTopExpr(address) {
+            return "pcall(function() " +
+                "local w = (hl.get_window and hl.get_window(\"address:" + address + "\")); " +
+                "if not w then return end; " +
+                "if w.floating then " +
+                    "pcall(function() hl.dispatch(hl.dsp.window.alter_zorder({ mode = \"top\", window = \"address:" + address + "\" })) end); " +
+                    "pcall(function() hl.dispatch(hl.dsp.window.bring_to_top()) end); " +
+                "else " +
+                    "local wsId = w.workspace and w.workspace.id; " +
+                    "if wsId and hl.get_windows then " +
+                        "local tiledCount = 0; " +
+                        "local hasFloating = false; " +
+                        "for _, other in ipairs(hl.get_windows()) do " +
+                            "if other.workspace and other.workspace.id == wsId then " +
+                                "if other.floating then " +
+                                    "if not other.pinned then hasFloating = true end " +
+                                "else " +
+                                    "tiledCount = tiledCount + 1; " +
+                                "end " +
+                            "end " +
+                        "end; " +
+                        "local isMaximized = (w.fullscreen and w.fullscreen > 0) " +
+                            "or (w.fullscreen_client and w.fullscreen_client > 0) " +
+                            "or (tiledCount <= 1); " +
+                        "if isMaximized and hasFloating then " +
+                            "if not (w.fullscreen and w.fullscreen > 0) then " +
+                                "pcall(function() hl.dispatch(hl.dsp.window.fullscreen({ mode = \"maximized\", action = \"set\", window = \"address:" + address + "\" })) end); " +
+                            "end; " +
+                            "for _, other in ipairs(hl.get_windows()) do " +
+                                "if other.address ~= w.address and other.workspace and other.workspace.id == wsId and other.floating and not other.pinned then " +
+                                    "pcall(function() hl.dispatch(hl.dsp.window.alter_zorder({ mode = \"bottom\", window = \"address:\" .. other.address })) end); " +
+                                "end " +
+                            "end " +
+                        "else " +
+                            "pcall(function() hl.dispatch(hl.dsp.window.alter_zorder({ mode = \"top\", window = \"address:" + address + "\" })) end); " +
+                            "pcall(function() hl.dispatch(hl.dsp.window.bring_to_top()) end); " +
+                        "end " +
+                    "else " +
+                        "pcall(function() hl.dispatch(hl.dsp.window.alter_zorder({ mode = \"top\", window = \"address:" + address + "\" })) end); " +
+                        "pcall(function() hl.dispatch(hl.dsp.window.bring_to_top()) end); " +
+                    "end " +
+                "end " +
+            "end)";
         }
+
+        function bringToTop(address) {
+            if (!address || !/^0x[0-9a-fA-F]+$/.test(address)) return;
+            dispatch("(function() " + bringToTopExpr(address) + "; return hl.dsp.submap(\"reset\") end)()");
+        }
+
+        function focus(address) {
+            if (!address || !/^0x[0-9a-fA-F]+$/.test(address)) return;
+            dispatch("(function() " +
+                "hl.dispatch(hl.dsp.focus({ window = \"address:" + address + "\" })); " +
+                bringToTopExpr(address) + "; " +
+                "return hl.dsp.submap(\"reset\") " +
+            "end)()");
+        }
+
         function switchWorkspace(id) {
             dispatch("(function() hl.dispatch(hl.dsp.focus({ workspace = \"" + id + "\" })); return hl.dsp.submap(\"reset\") end)()");
         }
+
         function resetSubmap() {
             dispatch("hl.dsp.submap(\"reset\")");
         }
@@ -305,6 +381,9 @@ Item {
         var flatMru = res.mruList;
         root.workspacesData = res.workspaces;
         root.mruList = flatMru;
+        if (res.activeMonitorName) {
+            root.activeMonitorName = res.activeMonitorName;
+        }
         if (res.monitorAspect) {
             root.monitorAspect = res.monitorAspect;
         }
@@ -577,6 +656,7 @@ Item {
 
     PanelWindow {
         id: win
+        screen: root.resolveActiveScreen(root.activeMonitorName)
         color: "transparent"
         visible: root.opened
         exclusionMode: ExclusionMode.Ignore
