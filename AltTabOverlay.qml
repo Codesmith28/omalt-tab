@@ -116,15 +116,22 @@ Item {
         root.openWithOffset(offset);
     }
 
+    property bool isDismissing: false
+
     function close() {
+        if (!root.opened && !root.isOpening) return;
+        if (root.isDismissing) return;
         root.cancel();
     }
 
     function dismiss() {
+        if (root.isDismissing) return;
+        root.isDismissing = true;
         root.opened = false;
         if (root.shell && typeof root.shell.hide === "function") {
             root.shell.hide((root.manifest && root.manifest.id) || "io.github.codesmith28.omalt-tab");
         }
+        root.isDismissing = false;
     }
 
     function toggle(payloadJson) {
@@ -244,13 +251,12 @@ Item {
     }
 
     // Hyprland Atomic Focus Dispatcher
-    Process {
+    QtObject {
         id: focusDispatcher
 
         function dispatch(expr) {
-            command = ["hyprctl", "dispatch", expr];
-            running = false;
-            running = true;
+            root.logDebug("FocusDispatcher dispatch: " + expr);
+            Quickshell.execDetached(["hyprctl", "dispatch", expr]);
         }
 
         // Lua expression to raise window to top of z-order (handles floating, fullscreen, and maximized tiled windows)
@@ -304,13 +310,17 @@ Item {
             dispatch("(function() " + bringToTopExpr(address) + "; return hl.dsp.submap(\"reset\") end)()");
         }
 
-        function focus(address) {
+        function focusWindow(address) {
             if (!address || !/^0x[0-9a-fA-F]+$/.test(address)) return;
             dispatch("(function() " +
                 "hl.dispatch(hl.dsp.focus({ window = \"address:" + address + "\" })); " +
                 bringToTopExpr(address) + "; " +
                 "return hl.dsp.submap(\"reset\") " +
             "end)()");
+        }
+
+        function focus(address) {
+            focusWindow(address);
         }
 
         function switchWorkspace(id) {
@@ -397,12 +407,12 @@ Item {
                 root.pendingCommit = false;
                 root.opened = false;
                 root.isOpening = false;
-                root.dismiss();
                 if (root.selectedWorkspaceId > 0) {
                     focusDispatcher.switchWorkspace(root.selectedWorkspaceId);
                 } else {
                     focusDispatcher.resetSubmap();
                 }
+                root.dismiss();
                 return;
             }
 
@@ -437,7 +447,8 @@ Item {
             root.pendingCommit = false;
             var targetAddr = flatMru[root.initialIndexForOffset(flatMru.length, root.pendingOffset)].address;
             root.opened = false;
-            focusDispatcher.focus(targetAddr);
+            focusDispatcher.focusWindow(targetAddr);
+            root.dismiss();
             return;
         }
 
@@ -607,18 +618,20 @@ Item {
     function commit() {
         root.logDebug("Commit requested (selectedAddress=" + root.selectedAddress + ", wsId=" + root.selectedWorkspaceId + ")");
         if (root.opened) {
+            var targetAddr = (root.selectedAddress && root.selectedAddress.length > 0) ? root.selectedAddress : "";
+            var targetWsId = root.selectedWorkspaceId;
+
             root.opened = false;
             root.isOpening = false;
             root.pendingCommit = false;
-            root.dismiss();
-            if (root.selectedAddress && root.selectedAddress.length > 0) {
-                var addr = root.selectedAddress;
-                focusDispatcher.focus(addr);
+
+            if (targetAddr) {
+                focusDispatcher.focusWindow(targetAddr);
                 // Optimistically move focused window to top of MRU cache
                 if (root.mruList && root.mruList.length > 0) {
                     var idx = -1;
                     for (var i = 0; i < root.mruList.length; i++) {
-                        if (root.mruList[i].address === addr) {
+                        if (root.mruList[i].address === targetAddr) {
                             idx = i;
                             break;
                         }
@@ -629,18 +642,21 @@ Item {
                     }
                 }
                 refreshTimer.restart();
-            } else if (root.selectedWorkspaceId > 0) {
-                focusDispatcher.switchWorkspace(root.selectedWorkspaceId);
+            } else if (targetWsId > 0) {
+                focusDispatcher.switchWorkspace(targetWsId);
                 refreshTimer.restart();
             } else {
                 focusDispatcher.resetSubmap();
             }
+
+            root.dismiss();
         } else if (root.isOpening) {
             root.isOpening = false;
             root.pendingCommit = true;
         } else {
             root.pendingCommit = false;
             focusDispatcher.resetSubmap();
+            root.dismiss();
         }
     }
 
@@ -649,9 +665,9 @@ Item {
         root.isOpening = false;
         root.pendingCommit = false;
         root.opened = false;
-        root.dismiss();
         focusDispatcher.resetSubmap();
         refreshTimer.restart();
+        root.dismiss();
     }
 
     // -------------------------------------------------------------------------
