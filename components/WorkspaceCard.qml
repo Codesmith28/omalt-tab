@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "../js/Dimensions.js" as Dimensions
 
 Rectangle {
     id: root
@@ -37,7 +38,7 @@ Rectangle {
     implicitHeight: cardHeight
     width: cardWidth
     height: cardHeight
-    radius: Math.max(4, Math.round(Style.cornerRadius * 0.65))
+    radius: Dimensions.card.radius
 
     color: containsSelected ? Util.alpha(Color.accent, 0.12) : Util.alpha(Color.foreground, 0.03)
     border.width: containsSelected ? 2 : 1
@@ -50,34 +51,36 @@ Rectangle {
 
     Column {
         anchors.fill: parent
-        anchors.margins: Style.spacing.sm
-        spacing: Style.spacing.xs
+        anchors.margins: Dimensions.card.margins
+        spacing: Dimensions.card.spacing
 
         // Workspace Header
         Item {
+            id: wsHeader
             width: parent.width
-            height: Math.max(26, Style.space(26))
+            height: Dimensions.card.headerHeight
 
             Row {
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                spacing: Style.spacing.sm
+                spacing: Dimensions.card.headerSpacing
 
                 // Home-row Letter Badge (A, S, D, F, G, H, J, K, L, ;)
                 Rectangle {
-                    width: Math.max(22, Style.space(24))
+                    width: Dimensions.card.letterBadgeSize
                     height: width
-                    radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+                    radius: Dimensions.card.letterBadgeRadius
                     color: root.containsSelected ? Color.accent : Util.alpha(Color.foreground, 0.08)
                     border.width: 1
                     border.color: root.containsSelected ? Color.accent : Util.alpha(Color.foreground, 0.2)
 
                     Text {
                         anchors.centerIn: parent
+                        textFormat: Text.PlainText
                         text: root.letter
                         color: root.containsSelected ? Color.background : Color.foreground
                         font.bold: true
-                        font.pixelSize: Style.font.caption
+                        font.pixelSize: Dimensions.card.letterBadgeFontSize
                         font.family: Style.font.resolvedFamily || Style.font.family
                     }
                 }
@@ -85,10 +88,11 @@ Rectangle {
                 // Workspace Name / Label
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.cardWidth < 220 ? ("WS " + root.name) : ("Workspace " + root.name)
+                    textFormat: Text.PlainText
+                    text: root.cardWidth < Dimensions.card.nameThresholdCompact ? ("WS " + root.name) : ("Workspace " + root.name)
                     color: root.containsSelected ? Color.foreground : (root.isActive ? Color.foreground : Color.muted)
                     font.family: Style.font.resolvedFamily || Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Dimensions.card.nameFontSize
                     font.weight: root.containsSelected ? Font.Bold : Font.Medium
                 }
             }
@@ -97,21 +101,22 @@ Rectangle {
             Rectangle {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                width: txtCount.implicitWidth + 12
-                height: Math.max(18, Style.space(18))
-                radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+                width: txtCount.implicitWidth + Dimensions.card.countBadgePadding
+                height: Dimensions.card.countBadgeHeight
+                radius: Dimensions.card.countBadgeRadius
                 color: Util.alpha(Color.foreground, 0.05)
                 border.width: 1
                 border.color: Util.alpha(Color.foreground, 0.15)
-                visible: root.cardWidth >= 200
+                visible: root.cardWidth >= Dimensions.card.countBadgeThreshold
 
                 Text {
                     id: txtCount
                     anchors.centerIn: parent
+                    textFormat: Text.PlainText
                     text: root.hasWindows ? (root.windows.length + " win") : "empty"
                     color: root.hasWindows ? Color.foreground : Color.muted
                     font.family: Style.font.resolvedFamily || Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Dimensions.card.countBadgeFontSize
                 }
             }
 
@@ -126,8 +131,8 @@ Rectangle {
         Rectangle {
             id: viewport
             width: parent.width
-            height: parent.height - 32
-            radius: Math.max(3, Math.round(Style.cornerRadius * 0.45))
+            height: parent.height - wsHeader.height - parent.spacing
+            radius: Dimensions.card.viewportRadius
             color: Util.alpha(Color.background, 0.85)
             border.width: 1
             border.color: root.containsSelected ? Util.alpha(Color.accent, 0.35) : Util.alpha(Color.foreground, 0.1)
@@ -143,7 +148,7 @@ Rectangle {
 
                 Column {
                     anchors.centerIn: parent
-                    spacing: Style.spacing.xs
+                    spacing: Dimensions.card.emptySpacing
                     opacity: root.containsSelected ? 0.95 : 0.6
 
                     Text {
@@ -151,24 +156,26 @@ Rectangle {
                         text: "󰍹"
                         color: root.containsSelected ? Color.accent : Color.muted
                         font.family: Style.font.resolvedFamily || Style.font.family
-                        font.pixelSize: Math.max(18, Math.min(24, Math.round(root.cardWidth / 14)))
+                        font.pixelSize: Dimensions.card.emptyIconSize
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        textFormat: Text.PlainText
                         text: root.containsSelected ? "Empty Workspace" : "Empty"
                         color: root.containsSelected ? Color.accent : Color.muted
                         font.family: Style.font.resolvedFamily || Style.font.family
-                        font.pixelSize: Math.max(11, Math.min(13, Math.round(root.cardWidth / 22)))
+                        font.pixelSize: Dimensions.card.emptyTitleSize
                         font.bold: root.containsSelected
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
+                        textFormat: Text.PlainText
                         text: root.containsSelected
                             ? (root.devMode ? "Press Enter to switch" : "Release Alt to switch")
                             : ("Press [" + root.letter + "] to switch")
                         color: root.containsSelected ? Color.foreground : Color.muted
                         font.family: Style.font.resolvedFamily || Style.font.family
-                        font.pixelSize: Math.max(9, Math.min(11, Math.round(root.cardWidth / 26)))
+                        font.pixelSize: Dimensions.card.emptyHintSize
                     }
                 }
 
@@ -180,11 +187,11 @@ Rectangle {
                 }
             }
 
-            // Windows on this workspace (inset by 2px margins so tile borders never collide with viewport borders)
+            // Windows on this workspace (inset by margins so tile borders never collide with viewport borders)
             Item {
                 id: windowCanvas
                 anchors.fill: parent
-                anchors.margins: 2
+                anchors.margins: Dimensions.card.canvasMargin
 
                 Repeater {
                     model: root.windows

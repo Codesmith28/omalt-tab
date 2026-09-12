@@ -1,6 +1,7 @@
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "../js/Dimensions.js" as Dimensions
 
 Item {
     id: root
@@ -9,20 +10,20 @@ Item {
     property bool devMode: false
     signal screenshotRequested()
 
-    implicitHeight: Math.max(34, Style.space(34))
-    implicitWidth: Math.max(leftRow.implicitWidth + 20, 260)
+    implicitHeight: Dimensions.header.height
+    implicitWidth: Math.max(leftRow.implicitWidth + 20, Dimensions.header.minWidth)
 
     // Left: Brand Icon + Title
     Row {
         id: leftRow
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.spacing.md
+        spacing: Dimensions.header.spacing
 
         Rectangle {
-            width: Math.max(26, Style.space(28))
+            width: Dimensions.header.brandBoxSize
             height: width
-            radius: Math.max(3, Math.round(Style.cornerRadius * 0.4))
+            radius: Dimensions.header.brandBoxRadius
             color: Util.alpha(Color.accent, 0.15)
             border.width: 1
             border.color: Util.alpha(Color.accent, 0.35)
@@ -31,7 +32,7 @@ Item {
                 anchors.centerIn: parent
                 text: "󰕴"
                 color: Color.accent
-                font.pixelSize: Math.max(25, Style.font.title)
+                font.pixelSize: Dimensions.header.brandIconSize
                 font.family: Style.font.resolvedFamily || Style.font.family
             }
         }
@@ -41,18 +42,18 @@ Item {
             text: root.title
             color: Color.menu.text
             font.family: Style.font.resolvedFamily || Style.font.family
-            font.pixelSize: Style.font.title
+            font.pixelSize: Dimensions.header.titleFontSize
             font.bold: true
-            font.letterSpacing: 1.2
+            font.letterSpacing: Dimensions.header.titleLetterSpacing
         }
 
         // Dev Mode Tag (Visible on main card header when devMode is active)
         Rectangle {
             visible: root.devMode
             anchors.verticalCenter: parent.verticalCenter
-            height: Math.max(20, Style.space(22))
-            width: devTagRow.implicitWidth + 14
-            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            height: Dimensions.header.devTagHeight
+            width: devTagRow.implicitWidth + Dimensions.header.devTagPadding
+            radius: Dimensions.header.devTagRadius
             color: Util.alpha(Color.accent, 0.20)
             border.width: 1
             border.color: Color.accent
@@ -60,14 +61,14 @@ Item {
             Row {
                 id: devTagRow
                 anchors.centerIn: parent
-                spacing: 5
+                spacing: Dimensions.header.devTagSpacing
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "󰅩"
                     color: Color.accent
                     font.family: Style.font.resolvedFamily || Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Dimensions.header.devTagFontSize
                 }
 
                 Text {
@@ -76,9 +77,9 @@ Item {
                     text: "DEV MODE"
                     color: Color.accent
                     font.family: Style.font.resolvedFamily || Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Dimensions.header.devTagFontSize
                     font.bold: true
-                    font.letterSpacing: 0.8
+                    font.letterSpacing: Dimensions.header.devTagLetterSpacing
                 }
             }
         }
@@ -88,9 +89,9 @@ Item {
             id: btnScreenshot
             visible: root.devMode
             anchors.verticalCenter: parent.verticalCenter
-            height: Math.max(20, Style.space(22))
-            width: shotRow.implicitWidth + 14
-            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            height: Dimensions.header.shotBtnHeight
+            width: shotRow.implicitWidth + Dimensions.header.shotBtnPadding
+            radius: Dimensions.header.shotBtnRadius
             color: shotMouse.containsMouse ? Util.alpha(Color.accent, 0.28) : Util.alpha(Color.foreground, 0.08)
             border.width: 1
             border.color: shotMouse.containsMouse ? Color.accent : Util.alpha(Color.foreground, 0.20)
@@ -98,14 +99,14 @@ Item {
             Row {
                 id: shotRow
                 anchors.centerIn: parent
-                spacing: 4
+                spacing: Dimensions.header.shotBtnSpacing
 
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: ""
                     color: shotMouse.containsMouse ? Color.accent : Color.foreground
                     font.family: Style.font.resolvedFamily || Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Dimensions.header.shotBtnFontSize
                 }
 
                 Text {
@@ -114,7 +115,7 @@ Item {
                     text: "Screenshot"
                     color: shotMouse.containsMouse ? Color.accent : Color.foreground
                     font.family: Style.font.resolvedFamily || Style.font.family
-                    font.pixelSize: Style.font.caption
+                    font.pixelSize: Dimensions.header.shotBtnFontSize
                     font.bold: true
                 }
             }
@@ -134,18 +135,18 @@ Item {
         id: rightRow
         anchors.right: parent.right
         anchors.verticalCenter: parent.verticalCenter
-        spacing: Style.spacing.md
+        spacing: Dimensions.header.spacing
 
         // Screenshot hint (PrtScn in dev mode)
         Rectangle {
             id: hintPrtScn
-            height: Math.max(22, Style.space(24))
-            width: txtPrtScn.implicitWidth + 16
-            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            height: Dimensions.header.shortcutHeight
+            width: txtPrtScn.implicitWidth + Dimensions.header.shortcutPadding
+            radius: Dimensions.header.shortcutRadius
             color: Util.alpha(Color.foreground, Style.normalFillAlpha)
             border.width: 1
             border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
-            visible: root.devMode && root.width >= 500
+            visible: root.devMode && root.width >= Dimensions.header.shortcutThresholdWide
 
             Text {
                 id: txtPrtScn
@@ -153,7 +154,7 @@ Item {
                 text: "PrtScn"
                 color: Color.foreground
                 font.family: Style.font.resolvedFamily || Style.font.family
-                font.pixelSize: Style.font.caption
+                font.pixelSize: Dimensions.header.shortcutFontSize
                 font.bold: true
             }
         }
@@ -161,13 +162,13 @@ Item {
         // Workspace direct jump hint (Home-row keys)
         Rectangle {
             id: hintWs
-            height: Math.max(22, Style.space(24))
-            width: txtWs.implicitWidth + 16
-            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            height: Dimensions.header.shortcutHeight
+            width: txtWs.implicitWidth + Dimensions.header.shortcutPadding
+            radius: Dimensions.header.shortcutRadius
             color: Util.alpha(Color.foreground, Style.normalFillAlpha)
             border.width: 1
             border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
-            visible: root.width >= 340
+            visible: root.width >= Dimensions.header.shortcutThresholdCompact
 
             Text {
                 id: txtWs
@@ -175,7 +176,7 @@ Item {
                 text: "WS [A-Z]"
                 color: Color.foreground
                 font.family: Style.font.resolvedFamily || Style.font.family
-                font.pixelSize: Style.font.caption
+                font.pixelSize: Dimensions.header.shortcutFontSize
                 font.bold: true
             }
         }
@@ -183,13 +184,13 @@ Item {
         // Window direct jump hint (1-9 keys)
         Rectangle {
             id: hintWin
-            height: Math.max(22, Style.space(24))
-            width: txtWin.implicitWidth + 16
-            radius: Math.max(3, Math.round(Style.cornerRadius * 0.35))
+            height: Dimensions.header.shortcutHeight
+            width: txtWin.implicitWidth + Dimensions.header.shortcutPadding
+            radius: Dimensions.header.shortcutRadius
             color: Util.alpha(Color.foreground, Style.normalFillAlpha)
             border.width: 1
             border.color: Util.alpha(Color.foreground, Style.normalBorderAlpha)
-            visible: root.width >= 430
+            visible: root.width >= Dimensions.header.shortcutThresholdMid
 
             Text {
                 id: txtWin
@@ -197,7 +198,7 @@ Item {
                 text: "Win [1-9]"
                 color: Color.foreground
                 font.family: Style.font.resolvedFamily || Style.font.family
-                font.pixelSize: Style.font.caption
+                font.pixelSize: Dimensions.header.shortcutFontSize
                 font.bold: true
             }
         }

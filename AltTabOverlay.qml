@@ -7,6 +7,7 @@ import qs.Commons
 import qs.Ui
 import "components"
 import "js/Config.js" as Config
+import "js/Dimensions.js" as Dimensions
 import "js/WindowModel.js" as WindowModel
 import "js/Navigation.js" as Navigation
 import "js/Icons.js" as Icons
@@ -313,7 +314,9 @@ Item {
         }
 
         function switchWorkspace(id) {
-            dispatch("(function() hl.dispatch(hl.dsp.focus({ workspace = \"" + id + "\" })); return hl.dsp.submap(\"reset\") end)()");
+            var safeId = parseInt(id, 10);
+            var safeArg = isNaN(safeId) ? String(id).replace(/[^a-zA-Z0-9_-]/g, "") : String(safeId);
+            dispatch("(function() hl.dispatch(hl.dsp.focus({ workspace = \"" + safeArg + "\" })); return hl.dsp.submap(\"reset\") end)()");
         }
 
         function resetSubmap() {
@@ -581,11 +584,12 @@ Item {
     function ensureWorkspaceVisible(wsIdx) {
         if (wsIdx < 0 || !wsFlickable || wsFlickable.width <= 0) return;
         var cardW = container.dynamicCardWidth;
-        var cardX = wsIdx * (cardW + 14);
+        var cardSpacing = Dimensions.overlay.cardSpacing;
+        var cardX = wsIdx * (cardW + cardSpacing);
         if (cardX < wsFlickable.contentX) {
-            wsFlickable.contentX = Math.max(0, cardX - 14);
+            wsFlickable.contentX = Math.max(0, cardX - cardSpacing);
         } else if (cardX + cardW > wsFlickable.contentX + wsFlickable.width) {
-            wsFlickable.contentX = Math.min(wsFlickable.contentWidth - wsFlickable.width, cardX + cardW - wsFlickable.width + 14);
+            wsFlickable.contentX = Math.min(wsFlickable.contentWidth - wsFlickable.width, cardX + cardW - wsFlickable.width + cardSpacing);
         }
     }
 
@@ -745,33 +749,34 @@ Item {
 
             // Dynamic Sizing: adapts to number of workspace cards and screen bounds
             readonly property int count: Math.max(1, root.workspacesData.length)
-            readonly property int maxAllowedWidth: Math.max(win.width - 80, 360)
-            readonly property int maxAllowedHeight: Math.max(win.height - 80, 300)
+            readonly property int maxAllowedWidth: Math.max(win.width - Dimensions.overlay.screenMargin, Dimensions.overlay.minAllowedWidth)
+            readonly property int maxAllowedHeight: Math.max(win.height - Dimensions.overlay.screenMargin, Dimensions.overlay.minAllowedHeight)
 
             // Dynamic card width: scales so that workspaces fit smoothly without overflow
             readonly property int dynamicCardWidth: {
-                var maxAvail = Math.max(340, win.width - 120);
-                var fitWidth = Math.floor((maxAvail - (count - 1) * 14) / count);
-                var maxW = (count === 1) ? 320 : ((count === 2) ? 300 : 285);
-                var minW = 185;
+                var spacing = Dimensions.overlay.cardSpacing;
+                var maxAvail = Math.max(Dimensions.card.maxAvailBase, win.width - 100);
+                var fitWidth = Math.floor((maxAvail - (count - 1) * spacing) / count);
+                var maxW = (count === 1) ? Dimensions.card.maxWidthSingle : ((count === 2) ? Dimensions.card.maxWidthDouble : Dimensions.card.maxWidthMulti);
+                var minW = Dimensions.card.minWidth;
                 return Math.max(minW, Math.min(maxW, fitWidth));
             }
 
             // Viewport and Card height derived from monitor aspect ratio
             readonly property real monitorAspect: root.monitorAspect > 0.5 ? root.monitorAspect : (16 / 10)
-            readonly property int dynamicVpWidth: dynamicCardWidth - 16
+            readonly property int dynamicVpWidth: dynamicCardWidth - Dimensions.card.viewportInset
             readonly property int dynamicVpHeight: Math.round(dynamicVpWidth / monitorAspect)
-            readonly property int dynamicCardHeight: dynamicVpHeight + 48
+            readonly property int dynamicCardHeight: dynamicVpHeight + Dimensions.card.headerHeight + Dimensions.card.margins * 2
 
             // Row and content width
-            readonly property int wsRowWidth: count * dynamicCardWidth + (count - 1) * 14
+            readonly property int wsRowWidth: count * dynamicCardWidth + (count - 1) * Dimensions.overlay.cardSpacing
             readonly property int minWidth: Math.max(headerBar.implicitWidth, footerBar.implicitWidth, dynamicCardWidth)
             readonly property int naturalContentWidth: Math.max(wsRowWidth, minWidth)
             readonly property int contentWidth: Math.min(naturalContentWidth, maxAllowedWidth)
 
-            width: contentWidth + 48
-            height: Math.min(contentCol.implicitHeight + 40, maxAllowedHeight)
-            radius: root.cornerRadius
+            width: contentWidth + Dimensions.overlay.containerPadding
+            height: Math.min(contentCol.implicitHeight + Dimensions.overlay.containerPaddingVertical, maxAllowedHeight)
+            radius: Dimensions.overlay.cornerRadius
             color: root.background
             borderSpec: root.borderSpec
 
@@ -786,7 +791,7 @@ Item {
                 id: contentCol
                 anchors.centerIn: parent
                 width: container.contentWidth
-                spacing: Style.spacing.panelGap
+                spacing: Dimensions.overlay.panelGap
 
                 HeaderBar {
                     id: headerBar
@@ -799,7 +804,7 @@ Item {
                 Flickable {
                     id: wsFlickable
                     width: parent.width
-                    height: container.dynamicCardHeight + 8
+                    height: container.dynamicCardHeight + Dimensions.overlay.flickableExtraHeight
                     contentWidth: container.wsRowWidth
                     contentHeight: height
                     boundsBehavior: Flickable.StopAtBounds
@@ -811,7 +816,7 @@ Item {
 
                         Row {
                             id: wsRow
-                            spacing: 14
+                            spacing: Dimensions.overlay.cardSpacing
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.verticalCenter: parent.verticalCenter
 
