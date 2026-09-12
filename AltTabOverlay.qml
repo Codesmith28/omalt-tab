@@ -752,12 +752,22 @@ Item {
             readonly property int maxAllowedWidth: Math.max(win.width - Dimensions.overlay.screenMargin, Dimensions.overlay.minAllowedWidth)
             readonly property int maxAllowedHeight: Math.max(win.height - Dimensions.overlay.screenMargin, Dimensions.overlay.minAllowedHeight)
 
-            // Dynamic card width: scales so that workspaces fit smoothly without overflow
+            // Dynamic multi-row overflow: threshold from 6 workspaces
+            readonly property bool isMultiRow: count > 6
+            readonly property int row1Count: isMultiRow ? Math.ceil(count / 2) : count
+            readonly property int row2Count: isMultiRow ? (count - row1Count) : 0
+            readonly property int maxRowCards: Math.max(row1Count, row2Count)
+
+            // Row data slices
+            readonly property var row1Data: root.workspacesData ? root.workspacesData.slice(0, row1Count) : []
+            readonly property var row2Data: (isMultiRow && root.workspacesData) ? root.workspacesData.slice(row1Count) : []
+
+            // Dynamic card width: scales based on maxRowCards so workspaces stay at the sweet spot
             readonly property int dynamicCardWidth: {
                 var spacing = Dimensions.overlay.cardSpacing;
                 var maxAvail = Math.max(Dimensions.card.maxAvailBase, win.width - 100);
-                var fitWidth = Math.floor((maxAvail - (count - 1) * spacing) / count);
-                var maxW = (count === 1) ? Dimensions.card.maxWidthSingle : ((count === 2) ? Dimensions.card.maxWidthDouble : Dimensions.card.maxWidthMulti);
+                var fitWidth = Math.floor((maxAvail - (maxRowCards - 1) * spacing) / maxRowCards);
+                var maxW = (maxRowCards === 1) ? Dimensions.card.maxWidthSingle : ((maxRowCards === 2) ? Dimensions.card.maxWidthDouble : Dimensions.card.maxWidthMulti);
                 var minW = Dimensions.card.minWidth;
                 return Math.max(minW, Math.min(maxW, fitWidth));
             }
@@ -768,10 +778,23 @@ Item {
             readonly property int dynamicVpHeight: Math.round(dynamicVpWidth / monitorAspect)
             readonly property int dynamicCardHeight: dynamicVpHeight + Dimensions.card.headerHeight + Dimensions.card.margins * 2
 
+            // Row dimensions and organic stagger offsets
+            readonly property int stepSize: dynamicCardWidth + Dimensions.overlay.cardSpacing
+            readonly property int row1Width: row1Count * dynamicCardWidth + (row1Count - 1) * Dimensions.overlay.cardSpacing
+            readonly property int row2Width: row2Count > 0 ? (row2Count * dynamicCardWidth + (row2Count - 1) * Dimensions.overlay.cardSpacing) : 0
+
+            // When rows have equal counts (e.g. 8 or 10), apply a half-step stagger shift
+            // When row counts differ (e.g. 7 or 9), natural centering already creates a 50% staggered honeycomb!
+            readonly property bool needsManualStagger: isMultiRow && (row1Count === row2Count)
+            readonly property int staggerShift: needsManualStagger ? Math.round(stepSize * 0.25) : 0
+            readonly property int cardsAreaWidth: Math.round(Math.max(row1Width, row2Width) + (needsManualStagger ? (stepSize * 0.5) : 0))
+            readonly property int cardsAreaHeight: isMultiRow
+                ? (dynamicCardHeight * 2 + Dimensions.overlay.rowSpacing)
+                : dynamicCardHeight
+
             // Row and content width
-            readonly property int wsRowWidth: count * dynamicCardWidth + (count - 1) * Dimensions.overlay.cardSpacing
             readonly property int minWidth: Math.max(headerBar.implicitWidth, footerBar.implicitWidth, dynamicCardWidth)
-            readonly property int naturalContentWidth: Math.max(wsRowWidth, minWidth)
+            readonly property int naturalContentWidth: Math.max(cardsAreaWidth, minWidth)
             readonly property int contentWidth: Math.min(naturalContentWidth, maxAllowedWidth)
 
             width: contentWidth + Dimensions.overlay.containerPadding
@@ -804,39 +827,85 @@ Item {
                 Flickable {
                     id: wsFlickable
                     width: parent.width
-                    height: container.dynamicCardHeight + Dimensions.overlay.flickableExtraHeight
-                    contentWidth: container.wsRowWidth
+                    height: container.cardsAreaHeight + Dimensions.overlay.flickableExtraHeight
+                    contentWidth: Math.max(width, container.cardsAreaWidth)
                     contentHeight: height
                     boundsBehavior: Flickable.StopAtBounds
                     clip: true
 
                     Item {
-                        width: Math.max(wsFlickable.width, container.wsRowWidth)
+                        width: Math.max(wsFlickable.width, container.cardsAreaWidth)
                         height: parent.height
 
-                        Row {
-                            id: wsRow
-                            spacing: Dimensions.overlay.cardSpacing
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.verticalCenter: parent.verticalCenter
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: container.isMultiRow ? Dimensions.overlay.rowSpacing : 0
 
-                            Repeater {
-                                model: root.workspacesData
-                                WorkspaceCard {
-                                    wsData: modelData
-                                    selectedAddress: root.selectedAddress
-                                    selectedWorkspaceId: root.selectedWorkspaceId
-                                    cardWidth: container.dynamicCardWidth
-                                    cardHeight: container.dynamicCardHeight
-                                    appLibrary: root.appLibrary
-                                    devMode: root.devMode
-                                    onWindowClicked: addr => {
-                                        root.selectAddress(addr);
-                                        root.commit();
+                            // Row 1
+                            Item {
+                                width: container.row1Width
+                                height: container.dynamicCardHeight
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.horizontalCenterOffset: -container.staggerShift
+
+                                Row {
+                                    anchors.fill: parent
+                                    spacing: Dimensions.overlay.cardSpacing
+
+                                    Repeater {
+                                        model: container.row1Data
+                                        WorkspaceCard {
+                                            wsData: modelData
+                                            selectedAddress: root.selectedAddress
+                                            selectedWorkspaceId: root.selectedWorkspaceId
+                                            cardWidth: container.dynamicCardWidth
+                                            cardHeight: container.dynamicCardHeight
+                                            appLibrary: root.appLibrary
+                                            devMode: root.devMode
+                                            onWindowClicked: addr => {
+                                                root.selectAddress(addr);
+                                                root.commit();
+                                            }
+                                            onWorkspaceClicked: id => {
+                                                focusDispatcher.switchWorkspace(id);
+                                                root.cancel();
+                                            }
+                                        }
                                     }
-                                    onWorkspaceClicked: id => {
-                                        focusDispatcher.switchWorkspace(id);
-                                        root.cancel();
+                                }
+                            }
+
+                            // Row 2 (Visible when total workspaces > 6)
+                            Item {
+                                visible: container.isMultiRow && container.row2Count > 0
+                                width: container.row2Width
+                                height: container.isMultiRow ? container.dynamicCardHeight : 0
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.horizontalCenterOffset: container.staggerShift
+
+                                Row {
+                                    anchors.fill: parent
+                                    spacing: Dimensions.overlay.cardSpacing
+
+                                    Repeater {
+                                        model: container.row2Data
+                                        WorkspaceCard {
+                                            wsData: modelData
+                                            selectedAddress: root.selectedAddress
+                                            selectedWorkspaceId: root.selectedWorkspaceId
+                                            cardWidth: container.dynamicCardWidth
+                                            cardHeight: container.dynamicCardHeight
+                                            appLibrary: root.appLibrary
+                                            devMode: root.devMode
+                                            onWindowClicked: addr => {
+                                                root.selectAddress(addr);
+                                                root.commit();
+                                            }
+                                            onWorkspaceClicked: id => {
+                                                focusDispatcher.switchWorkspace(id);
+                                                root.cancel();
+                                            }
+                                        }
                                     }
                                 }
                             }

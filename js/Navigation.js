@@ -68,6 +68,23 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
 
     // If current selection is an empty workspace (no curWin)
     if (!curWin) {
+        if (workspacesData.length > 6 && (direction === "down" || direction === "up")) {
+            var r1Count = Math.ceil(workspacesData.length / 2);
+            var targetWsIdx = -1;
+            if (direction === "down" && curWsIdx < r1Count) {
+                targetWsIdx = Math.min(workspacesData.length - 1, curWsIdx + r1Count);
+            } else if (direction === "up" && curWsIdx >= r1Count) {
+                targetWsIdx = Math.max(0, curWsIdx - r1Count);
+            }
+            if (targetWsIdx !== -1) {
+                var tw = workspacesData[targetWsIdx];
+                if (tw.windows && tw.windows.length > 0) {
+                    return { address: tw.windows[0].address, wsId: tw.id, isWorkspace: false };
+                }
+                return { address: null, wsId: tw.id, isWorkspace: true };
+            }
+        }
+
         if (direction === "right" || direction === "down") {
             var nextWsIdx = (curWsIdx + 1) % workspacesData.length;
             var nextWs = workspacesData[nextWsIdx];
@@ -128,6 +145,19 @@ function isSameGroup(winA, winB) {
             return { address: curWin.groupMembers[nextGIdx].address, wsId: currentWs.id, isWorkspace: false };
         }
 
+        // When in multi-row layout (> 6 workspaces), down moves from Row 1 to Row 2
+        if (workspacesData.length > 6) {
+            var r1Count = Math.ceil(workspacesData.length / 2);
+            if (curWsIdx < r1Count) {
+                var targetIdx = Math.min(workspacesData.length - 1, curWsIdx + r1Count);
+                var tw = workspacesData[targetIdx];
+                if (tw.windows && tw.windows.length > 0) {
+                    return { address: tw.windows[0].address, wsId: tw.id, isWorkspace: false };
+                }
+                return { address: null, wsId: tw.id, isWorkspace: true };
+            }
+        }
+
         // Wrap to topmost window in current workspace
         var topWin = null;
         var minCy = Infinity;
@@ -169,6 +199,19 @@ function isSameGroup(winA, winB) {
             var curG = (curWin.groupIndex !== undefined) ? curWin.groupIndex : 0;
             var prevGIdx = (curG - 1 + curWin.groupMembers.length) % curWin.groupMembers.length;
             return { address: curWin.groupMembers[prevGIdx].address, wsId: currentWs.id, isWorkspace: false };
+        }
+
+        // When in multi-row layout (> 6 workspaces), up moves from Row 2 to Row 1
+        if (workspacesData.length > 6) {
+            var r1Count = Math.ceil(workspacesData.length / 2);
+            if (curWsIdx >= r1Count) {
+                var targetIdx = Math.max(0, curWsIdx - r1Count);
+                var tw = workspacesData[targetIdx];
+                if (tw.windows && tw.windows.length > 0) {
+                    return { address: tw.windows[0].address, wsId: tw.id, isWorkspace: false };
+                }
+                return { address: null, wsId: tw.id, isWorkspace: true };
+            }
         }
 
         // Wrap to bottom-most window in current workspace
