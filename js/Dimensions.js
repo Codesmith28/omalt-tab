@@ -3,203 +3,204 @@
 .pragma library
 
 // -----------------------------------------------------------------------------
-// Switcher Overlay & Container Dimensions (1.2x balanced desktop scale)
+// Switcher Overlay & Container Dimensions (1.1x sweet-spot scale)
 // -----------------------------------------------------------------------------
 
 var overlay = {
     screenMargin: 64,
-    containerPadding: 58,
-    containerPaddingVertical: 48,
-    minAllowedWidth: 432,
-    minAllowedHeight: 360,
-    panelGap: 14,
-    cardSpacing: 17,
+    containerPadding: 50,
+    containerPaddingVertical: 42,
+    minAllowedWidth: 400,
+    minAllowedHeight: 320,
+    panelGap: 12,
+    cardSpacing: 15,
+    rowSpacing: 14,
     flickableExtraHeight: 10,
     cornerRadius: 14
 };
 
 // -----------------------------------------------------------------------------
-// Workspace Card Dimensions (1.2x scale)
+// Workspace Card Dimensions (1.1x scale - 6 workspace sweet spot default)
 // -----------------------------------------------------------------------------
 
 var card = {
     // Responsive dynamic card width calculation tokens
-    maxAvailBase: 408,
-    minWidth: 222,
-    maxWidthSingle: 384,
-    maxWidthDouble: 360,
-    maxWidthMulti: 342,
+    maxAvailBase: 380,
+    minWidth: 210,
+    maxWidthSingle: 330,
+    maxWidthDouble: 310,
+    maxWidthMulti: 285, // Sweet-spot default size matching 6 workspaces
 
     // Dimensions
-    headerHeight: 31,
-    headerSpacing: 10,
-    margins: 10,
+    headerHeight: 28,
+    headerSpacing: 9,
+    margins: 9,
     spacing: 5,
-    radius: 14,
+    radius: 12,
 
     // Header letter badge
-    letterBadgeSize: 29,
+    letterBadgeSize: 26,
     letterBadgeRadius: 4,
-    letterBadgeFontSize: 13,
+    letterBadgeFontSize: 12,
 
     // Header workspace label
-    nameFontSize: 13,
-    nameThresholdCompact: 264,
+    nameFontSize: 12,
+    nameThresholdCompact: 240,
 
     // Header window count badge
-    countBadgeHeight: 22,
-    countBadgePadding: 14,
+    countBadgeHeight: 20,
+    countBadgePadding: 13,
     countBadgeRadius: 4,
-    countBadgeFontSize: 12,
-    countBadgeThreshold: 240,
+    countBadgeFontSize: 11,
+    countBadgeThreshold: 220,
 
     // Viewport
     viewportRadius: 7,
-    viewportInset: 19, // cardWidth - viewportInset = viewportWidth
+    viewportInset: 18, // cardWidth - viewportInset = viewportWidth
     canvasMargin: 2,
 
     // Empty state
-    emptyIconSize: 26,
-    emptyTitleSize: 14,
-    emptyHintSize: 12,
-    emptySpacing: 5
+    emptyIconSize: 24,
+    emptyTitleSize: 13,
+    emptyHintSize: 11,
+    emptySpacing: 4
 };
 
 // -----------------------------------------------------------------------------
-// Window Tile Dimensions (1.2x scale)
+// Window Tile Dimensions (1.1x scale)
 // -----------------------------------------------------------------------------
 
 var windowTile = {
-    minWidth: 36,
-    minHeight: 29,
-    radius: 5,
+    minWidth: 33,
+    minHeight: 26,
+    radius: 4,
 
     borderWidthNormal: 1,
     borderWidthSelected: 2,
     innerRingMargin: 2,
 
     // Index hotkey badge [1], [2], ...
-    indexBadgeSize: 22,
-    indexBadgeMinSize: 16,
-    indexBadgeMargin: 5,
-    indexBadgeRadius: 4,
+    indexBadgeSize: 20,
+    indexBadgeMinSize: 15,
+    indexBadgeMargin: 4,
+    indexBadgeRadius: 3,
     indexBadgeFontSize: 11,
 
     // Mini group badge for small tiles
-    miniGroupBadgeSize: 19,
+    miniGroupBadgeSize: 18,
     miniGroupBadgeMargin: 4,
     miniGroupBadgeRadius: 3,
-    miniGroupBadgeFontSize: 10,
+    miniGroupBadgeFontSize: 9,
 
     // Group Tab Bar
-    tabBarHeight: 24,
-    tabBarRadius: 4,
+    tabBarHeight: 22,
+    tabBarRadius: 3,
     tabBarMargin: 2,
     tabBarSpacing: 2,
-    tabBarThresholdHeight: 46,
-    tabBarThresholdWidth: 66,
+    tabBarThresholdHeight: 42,
+    tabBarThresholdWidth: 60,
 
     // Individual Tab Pill
-    tabPillHeight: 20,
-    tabPillMinWidth: 29,
-    tabPillMaxWidth: 102,
+    tabPillHeight: 18,
+    tabPillMinWidth: 26,
+    tabPillMaxWidth: 95,
     tabPillRadius: 3,
     tabPillSpacing: 3,
-    tabPillFontSize: 11,
-    tabPillIconSize: 14,
-    tabPillIconThreshold: 41,
+    tabPillFontSize: 10,
+    tabPillIconSize: 13,
+    tabPillIconThreshold: 38,
 
     // Tab Bar Group Counter
-    groupCounterThreshold: 108,
-    groupCounterNumberThreshold: 132,
+    groupCounterThreshold: 100,
+    groupCounterNumberThreshold: 120,
     groupCounterMargin: 5,
     groupCounterSpacing: 2,
-    groupCounterIconSize: 11,
-    groupCounterFontSize: 10,
+    groupCounterIconSize: 10,
+    groupCounterFontSize: 9,
 
     // Center App Icon
-    appIconSize: 40,
+    appIconSize: 36,
     appIconSourceSize: 48
 };
 
 // -----------------------------------------------------------------------------
-// Header Bar Dimensions (1.2x scale)
+// Header Bar Dimensions (1.1x scale)
 // -----------------------------------------------------------------------------
 
 var header = {
-    height: 41,
-    minWidth: 312,
-    spacing: 14,
+    height: 38,
+    minWidth: 290,
+    spacing: 13,
 
     // Brand icon box
-    brandBoxSize: 34,
-    brandBoxRadius: 5,
-    brandIconSize: 29,
+    brandBoxSize: 31,
+    brandBoxRadius: 4,
+    brandIconSize: 26,
 
     // Title
-    titleFontSize: 19,
-    titleLetterSpacing: 1.4,
+    titleFontSize: 18,
+    titleLetterSpacing: 1.3,
 
     // Dev mode tag
-    devTagHeight: 26,
-    devTagPadding: 17,
+    devTagHeight: 24,
+    devTagPadding: 15,
     devTagRadius: 4,
-    devTagSpacing: 6,
+    devTagSpacing: 5,
     devTagFontSize: 11,
-    devTagLetterSpacing: 1.0,
+    devTagLetterSpacing: 0.9,
 
     // Screenshot button
-    shotBtnHeight: 26,
-    shotBtnPadding: 17,
+    shotBtnHeight: 24,
+    shotBtnPadding: 15,
     shotBtnRadius: 4,
     shotBtnSpacing: 5,
-    shotBtnFontSize: 12,
+    shotBtnFontSize: 11,
 
     // Direct jump shortcuts
-    shortcutHeight: 29,
-    shortcutPadding: 19,
+    shortcutHeight: 26,
+    shortcutPadding: 17,
     shortcutRadius: 4,
-    shortcutFontSize: 12,
-    shortcutThresholdWide: 600,
-    shortcutThresholdMid: 516,
-    shortcutThresholdCompact: 408
+    shortcutFontSize: 11,
+    shortcutThresholdWide: 550,
+    shortcutThresholdMid: 470,
+    shortcutThresholdCompact: 375
 };
 
 // -----------------------------------------------------------------------------
-// Footer Bar Dimensions (1.2x scale)
+// Footer Bar Dimensions (1.1x scale)
 // -----------------------------------------------------------------------------
 
 var footer = {
-    height: 68,
-    minWidth: 384,
-    radius: 7,
-    padding: 14,
+    height: 62,
+    minWidth: 350,
+    radius: 6,
+    padding: 13,
 
     // App icon container
-    iconContainerSize: 43,
+    iconContainerSize: 40,
     appIconSourceSize: 64,
     workspaceIconRadius: 4,
-    workspaceIconFontSize: 22,
+    workspaceIconFontSize: 20,
 
     // Status & hints
-    statusSpacing: 14,
-    statusThreshold: 552,
-    statusDividerHeight: 17,
-    statusFontSize: 12,
+    statusSpacing: 13,
+    statusThreshold: 510,
+    statusDividerHeight: 15,
+    statusFontSize: 11,
 
     // Center text
-    textSpacing: 4,
-    titleFontSize: 15,
+    textSpacing: 3,
+    titleFontSize: 14,
 
     // Metadata Badges
-    badgeHeight: 22,
-    badgePadding: 14,
+    badgeHeight: 20,
+    badgePadding: 13,
     badgeRadius: 3,
-    badgeSpacing: 6,
-    badgeFontSize: 12,
+    badgeSpacing: 5,
+    badgeFontSize: 11,
 
     // Group Tab Badge
-    groupBadgeSpacing: 5,
-    groupBadgeIconSize: 12,
-    groupBadgeFontSize: 12
+    groupBadgeSpacing: 4,
+    groupBadgeIconSize: 11,
+    groupBadgeFontSize: 11
 };

@@ -948,30 +948,32 @@ const nav = loadModule("js/Navigation.js");
 
   // 1. Verify Dimensions.js design token sections exist with valid numeric metrics
   assert(dim.overlay && typeof dim.overlay === "object", "Dimensions should export overlay object");
-  assert.strictEqual(dim.overlay.containerPadding, 58);
-  assert.strictEqual(dim.overlay.containerPaddingVertical, 48);
+  assert.strictEqual(dim.overlay.containerPadding, 50);
+  assert.strictEqual(dim.overlay.containerPaddingVertical, 42);
   assert.strictEqual(dim.overlay.cornerRadius, 14);
+  assert.strictEqual(dim.overlay.rowSpacing, 14);
 
   assert(dim.card && typeof dim.card === "object", "Dimensions should export card object");
-  assert.strictEqual(dim.card.headerHeight, 31);
-  assert.strictEqual(dim.card.letterBadgeSize, 29);
-  assert.strictEqual(dim.card.emptyIconSize, 26);
+  assert.strictEqual(dim.card.headerHeight, 28);
+  assert.strictEqual(dim.card.letterBadgeSize, 26);
+  assert.strictEqual(dim.card.emptyIconSize, 24);
+  assert.strictEqual(dim.card.maxWidthMulti, 285);
 
   assert(dim.windowTile && typeof dim.windowTile === "object", "Dimensions should export windowTile object");
-  assert.strictEqual(dim.windowTile.indexBadgeSize, 22);
-  assert.strictEqual(dim.windowTile.indexBadgeMinSize, 16);
-  assert.strictEqual(dim.windowTile.tabBarHeight, 24);
-  assert.strictEqual(dim.windowTile.appIconSize, 40);
+  assert.strictEqual(dim.windowTile.indexBadgeSize, 20);
+  assert.strictEqual(dim.windowTile.indexBadgeMinSize, 15);
+  assert.strictEqual(dim.windowTile.tabBarHeight, 22);
+  assert.strictEqual(dim.windowTile.appIconSize, 36);
 
   assert(dim.header && typeof dim.header === "object", "Dimensions should export header object");
-  assert.strictEqual(dim.header.height, 41);
-  assert.strictEqual(dim.header.titleFontSize, 19);
-  assert.strictEqual(dim.header.brandBoxSize, 34);
+  assert.strictEqual(dim.header.height, 38);
+  assert.strictEqual(dim.header.titleFontSize, 18);
+  assert.strictEqual(dim.header.brandBoxSize, 31);
 
   assert(dim.footer && typeof dim.footer === "object", "Dimensions should export footer object");
-  assert.strictEqual(dim.footer.height, 68);
-  assert.strictEqual(dim.footer.iconContainerSize, 43);
-  assert.strictEqual(dim.footer.titleFontSize, 15);
+  assert.strictEqual(dim.footer.height, 62);
+  assert.strictEqual(dim.footer.iconContainerSize, 40);
+  assert.strictEqual(dim.footer.titleFontSize, 14);
 
   // Dimensions.js is purely for layout tokens; verify text functions are not in Dimensions
   assert.strictEqual(dim.sanitizeText, undefined, "sanitizeText should live in Utils.js, not Dimensions.js");

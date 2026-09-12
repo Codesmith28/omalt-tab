@@ -100,13 +100,9 @@ Rectangle {
         width: Math.max(badgeBaseSize, txtIndex.implicitWidth + 8)
         radius: Dimensions.windowTile.indexBadgeRadius
 
-        color: root.isSelected
-            ? Color.accent
-            : (mouseArea.containsMouse ? Util.alpha(Color.accent, 0.22) : Util.alpha(Color.background, 0.94))
+        color: root.isSelected ? Color.accent : Util.alpha(Color.background, 0.85)
         border.width: 1
-        border.color: root.isSelected
-            ? Color.accent
-            : (mouseArea.containsMouse ? Color.accent : Util.alpha(Color.accent, 0.65))
+        border.color: Color.accent
 
         Behavior on color { ColorAnimation { duration: 100 } }
         Behavior on border.color { ColorAnimation { duration: 100 } }
@@ -135,9 +131,9 @@ Rectangle {
         width: Dimensions.windowTile.miniGroupBadgeSize
         height: width
         radius: Dimensions.windowTile.miniGroupBadgeRadius
-        color: root.isSelected ? Color.accent : Util.alpha(Color.background, 0.94)
+        color: root.isSelected ? Color.accent : Util.alpha(Color.background, 0.85)
         border.width: 1
-        border.color: root.isSelected ? Color.accent : Util.alpha(Color.accent, 0.65)
+        border.color: Color.accent
 
         Behavior on color { ColorAnimation { duration: 100 } }
         Behavior on border.color { ColorAnimation { duration: 100 } }
