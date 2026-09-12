@@ -180,14 +180,20 @@ Rectangle {
                 }
             }
 
-            // Windows on this workspace
-            Repeater {
-                model: root.windows
-                WindowTile {
-                    winData: modelData
-                    selectedAddress: root.selectedAddress
-                    appLibrary: root.appLibrary
-                    onClicked: addr => root.windowClicked(addr)
+            // Windows on this workspace (inset by 2px margins so tile borders never collide with viewport borders)
+            Item {
+                id: windowCanvas
+                anchors.fill: parent
+                anchors.margins: 2
+
+                Repeater {
+                    model: root.windows
+                    WindowTile {
+                        winData: modelData
+                        selectedAddress: root.selectedAddress
+                        appLibrary: root.appLibrary
+                        onClicked: addr => root.windowClicked(addr)
+                    }
                 }
             }
         }

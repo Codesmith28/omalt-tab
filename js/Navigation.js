@@ -86,6 +86,17 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
         return null;
     }
 
+function isSameGroup(winA, winB) {
+    if (!winA || !winB) return false;
+    if (winA.address === winB.address) return true;
+    if (winA.isGrouped && winB.isGrouped && winA.groupMembers && winA.groupMembers.length > 0) {
+        for (var i = 0; i < winA.groupMembers.length; i++) {
+            if (winA.groupMembers[i].address === winB.address) return true;
+        }
+    }
+    return false;
+}
+
     var curCx = centerCx(curWin);
     var curCy = centerCy(curWin);
 
@@ -94,7 +105,7 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
         var bestDownScore = Infinity;
         for (var i = 0; i < currentWs.windows.length; i++) {
             var cand = currentWs.windows[i];
-            if (cand.address === curWin.address) continue;
+            if (isSameGroup(cand, curWin)) continue;
             var dy = centerCy(cand) - curCy;
             if (dy > 0.05) {
                 var score = dy * 2 + Math.abs(centerCx(cand) - curCx);
@@ -104,7 +115,18 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
                 }
             }
         }
-        if (bestDown) return { address: bestDown.address, wsId: currentWs.id, isWorkspace: false };
+        if (bestDown) {
+            var downAddr = (bestDown.isGrouped && bestDown.groupMembers && bestDown.groupMembers.length > 0)
+                ? bestDown.groupMembers[0].address
+                : bestDown.address;
+            return { address: downAddr, wsId: currentWs.id, isWorkspace: false };
+        }
+
+        // If in a group and no window below, cycle to the next tab in the group
+        if (curWin.isGrouped && curWin.groupMembers && curWin.groupMembers.length > 1) {
+            var nextGIdx = ((curWin.groupIndex !== undefined ? curWin.groupIndex : 0) + 1) % curWin.groupMembers.length;
+            return { address: curWin.groupMembers[nextGIdx].address, wsId: currentWs.id, isWorkspace: false };
+        }
 
         // Wrap to topmost window in current workspace
         var topWin = null;
@@ -125,7 +147,7 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
         var bestUpScore = Infinity;
         for (var i = 0; i < currentWs.windows.length; i++) {
             var cand = currentWs.windows[i];
-            if (cand.address === curWin.address) continue;
+            if (isSameGroup(cand, curWin)) continue;
             var dy = curCy - centerCy(cand);
             if (dy > 0.05) {
                 var score = dy * 2 + Math.abs(centerCx(cand) - curCx);
@@ -135,7 +157,19 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
                 }
             }
         }
-        if (bestUp) return { address: bestUp.address, wsId: currentWs.id, isWorkspace: false };
+        if (bestUp) {
+            var upAddr = (bestUp.isGrouped && bestUp.groupMembers && bestUp.groupMembers.length > 0)
+                ? bestUp.groupMembers[0].address
+                : bestUp.address;
+            return { address: upAddr, wsId: currentWs.id, isWorkspace: false };
+        }
+
+        // If in a group and no window above, cycle to the previous tab in the group
+        if (curWin.isGrouped && curWin.groupMembers && curWin.groupMembers.length > 1) {
+            var curG = (curWin.groupIndex !== undefined) ? curWin.groupIndex : 0;
+            var prevGIdx = (curG - 1 + curWin.groupMembers.length) % curWin.groupMembers.length;
+            return { address: curWin.groupMembers[prevGIdx].address, wsId: currentWs.id, isWorkspace: false };
+        }
 
         // Wrap to bottom-most window in current workspace
         var bottomWin = null;
@@ -152,12 +186,20 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
             return { address: bottomWin.address, wsId: currentWs.id, isWorkspace: false };
         }
     } else if (direction === "right") {
-        // 1. Look for windows to the right inside current workspace
+        // A. If current window is part of a group and not the rightmost tab, move to next tab in group
+        if (curWin.isGrouped && curWin.groupMembers && curWin.groupMembers.length > 1) {
+            var curGIdx = (curWin.groupIndex !== undefined) ? curWin.groupIndex : 0;
+            if (curGIdx < curWin.groupMembers.length - 1) {
+                return { address: curWin.groupMembers[curGIdx + 1].address, wsId: currentWs.id, isWorkspace: false };
+            }
+        }
+
+        // B. Look for windows to the right inside current workspace
         var bestRight = null;
         var bestRightScore = Infinity;
         for (var i = 0; i < currentWs.windows.length; i++) {
             var cand = currentWs.windows[i];
-            if (cand.address === curWin.address) continue;
+            if (isSameGroup(cand, curWin)) continue;
             var dx = centerCx(cand) - curCx;
             if (dx > 0.05) {
                 var score = dx + Math.abs(centerCy(cand) - curCy) * 0.8;
@@ -167,9 +209,14 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
                 }
             }
         }
-        if (bestRight) return { address: bestRight.address, wsId: currentWs.id, isWorkspace: false };
+        if (bestRight) {
+            var rightAddr = (bestRight.isGrouped && bestRight.groupMembers && bestRight.groupMembers.length > 0)
+                ? bestRight.groupMembers[0].address
+                : bestRight.address;
+            return { address: rightAddr, wsId: currentWs.id, isWorkspace: false };
+        }
 
-        // 2. Move to next workspace on the right
+        // C. Move to next workspace on the right
         var nextWsIdx = (curWsIdx + 1) % workspacesData.length;
         var nextWs = workspacesData[nextWsIdx];
         if (nextWs.windows && nextWs.windows.length > 0) {
@@ -183,17 +230,30 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
                     bestNextWin = cand;
                 }
             }
-            if (bestNextWin) return { address: bestNextWin.address, wsId: nextWs.id, isWorkspace: false };
+            if (bestNextWin) {
+                var nextAddr = (bestNextWin.isGrouped && bestNextWin.groupMembers && bestNextWin.groupMembers.length > 0)
+                    ? bestNextWin.groupMembers[0].address
+                    : bestNextWin.address;
+                return { address: nextAddr, wsId: nextWs.id, isWorkspace: false };
+            }
         }
         // Next workspace is empty
         return { address: null, wsId: nextWs.id, isWorkspace: true };
     } else if (direction === "left") {
-        // 1. Look for windows to the left inside current workspace
+        // A. If current window is part of a group and not the leftmost tab, move to previous tab in group
+        if (curWin.isGrouped && curWin.groupMembers && curWin.groupMembers.length > 1) {
+            var curGIdx = (curWin.groupIndex !== undefined) ? curWin.groupIndex : 0;
+            if (curGIdx > 0) {
+                return { address: curWin.groupMembers[curGIdx - 1].address, wsId: currentWs.id, isWorkspace: false };
+            }
+        }
+
+        // B. Look for windows to the left inside current workspace
         var bestLeft = null;
         var bestLeftScore = Infinity;
         for (var i = 0; i < currentWs.windows.length; i++) {
             var cand = currentWs.windows[i];
-            if (cand.address === curWin.address) continue;
+            if (isSameGroup(cand, curWin)) continue;
             var dx = curCx - centerCx(cand);
             if (dx > 0.05) {
                 var score = dx + Math.abs(centerCy(cand) - curCy) * 0.8;
@@ -203,9 +263,14 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
                 }
             }
         }
-        if (bestLeft) return { address: bestLeft.address, wsId: currentWs.id, isWorkspace: false };
+        if (bestLeft) {
+            var leftAddr = (bestLeft.isGrouped && bestLeft.groupMembers && bestLeft.groupMembers.length > 0)
+                ? bestLeft.groupMembers[bestLeft.groupMembers.length - 1].address
+                : bestLeft.address;
+            return { address: leftAddr, wsId: currentWs.id, isWorkspace: false };
+        }
 
-        // 2. Move to previous workspace on the left
+        // C. Move to previous workspace on the left
         var prevWsIdx = (curWsIdx - 1 + workspacesData.length) % workspacesData.length;
         var prevWs = workspacesData[prevWsIdx];
         if (prevWs.windows && prevWs.windows.length > 0) {
@@ -220,7 +285,12 @@ function findSpatialTarget(workspacesData, currentAddress, currentWsId, directio
                     bestPrevWin = cand;
                 }
             }
-            if (bestPrevWin) return { address: bestPrevWin.address, wsId: prevWs.id, isWorkspace: false };
+            if (bestPrevWin) {
+                var prevAddr = (bestPrevWin.isGrouped && bestPrevWin.groupMembers && bestPrevWin.groupMembers.length > 0)
+                    ? bestPrevWin.groupMembers[bestPrevWin.groupMembers.length - 1].address
+                    : bestPrevWin.address;
+                return { address: prevAddr, wsId: prevWs.id, isWorkspace: false };
+            }
         }
         // Previous workspace is empty
         return { address: null, wsId: prevWs.id, isWorkspace: true };

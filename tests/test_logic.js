@@ -753,5 +753,180 @@ const nav = loadModule("js/Navigation.js");
   console.log("  ✓ AltTabOverlay.qml bringToTopExpr lowers floating windows behind maximized tiled windows");
 }
 
+// Test 15: Grouped window parsing, groupMembers, and UI components
+{
+  const mockData = {
+    clients: [
+      {
+        address: "0x1",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [50, 50],
+        size: [1800, 1100],
+        title: "Terminal",
+        class: "ghostty",
+        focusHistoryID: 1,
+        visible: false,
+        grouped: ["0x1", "0x2"]
+      },
+      {
+        address: "0x2",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [50, 50],
+        size: [1800, 1100],
+        title: "VS Code",
+        class: "code",
+        focusHistoryID: 0,
+        visible: true,
+        grouped: ["0x1", "0x2"]
+      },
+      {
+        address: "0x3",
+        mapped: true,
+        workspace: { id: 2 },
+        at: [0, 0],
+        size: [1920, 1080],
+        title: "Browser",
+        class: "brave",
+        focusHistoryID: 2,
+        visible: true,
+        grouped: []
+      }
+    ],
+    workspaces: [
+      { id: 1, name: "1" },
+      { id: 2, name: "2" }
+    ],
+    monitors: [
+      { id: 0, name: "eDP-1", width: 1920, height: 1200, x: 0, y: 0, focused: true }
+    ]
+  };
+
+  const parsed = wm.parseSnapshot(mockData, ["a", "s", "d"]);
+  const ws1 = parsed.workspaces[0];
+  assert.strictEqual(ws1.windows.length, 2, "Workspace 1 should have 2 windows in the group");
+
+  const win1 = ws1.windows[0];
+  const win2 = ws1.windows[1];
+
+  assert.strictEqual(win1.address, "0x1");
+  assert.strictEqual(win1.isGrouped, true, "win1 should be marked isGrouped");
+  assert.strictEqual(win1.groupIndex, 0, "win1 groupIndex should be 0");
+  assert.strictEqual(win1.groupLength, 2, "win1 groupLength should be 2");
+  assert.strictEqual(win1.groupMembers.length, 2, "win1 should have 2 groupMembers");
+  assert.strictEqual(win1.groupMembers[0].address, "0x1");
+  assert.strictEqual(win1.groupMembers[1].address, "0x2");
+  assert.strictEqual(win1.groupMembers[0].wsIndex, 1);
+  assert.strictEqual(win1.groupMembers[1].wsIndex, 2);
+
+  assert.strictEqual(win2.address, "0x2");
+  assert.strictEqual(win2.isGrouped, true, "win2 should be marked isGrouped");
+  assert.strictEqual(win2.groupIndex, 1, "win2 groupIndex should be 1");
+  assert.strictEqual(win2.groupLength, 2, "win2 groupLength should be 2");
+
+  // Non-grouped window
+  const ws2 = parsed.workspaces[1];
+  assert.strictEqual(ws2.windows[0].isGrouped, false, "win3 should NOT be marked isGrouped");
+
+  // Verify WindowTile.qml has tab bar and group pill support
+  const tileQml = fs.readFileSync("components/WindowTile.qml", "utf8");
+  assert(tileQml.includes("showTabBar"), "WindowTile should have showTabBar property");
+  assert(tileQml.includes("groupMembers"), "WindowTile should iterate groupMembers");
+  assert(tileQml.includes("miniGroupBadge"), "WindowTile should have miniGroupBadge fallback");
+
+  // Verify FooterBar.qml has group tab badge
+  const footerQml = fs.readFileSync("components/FooterBar.qml", "utf8");
+  assert(footerQml.includes("rowGroupBadge"), "FooterBar should have rowGroupBadge");
+  assert(footerQml.includes("isGrouped"), "FooterBar should check isGrouped");
+
+  console.log("  ✓ WindowModel and components correctly support grouped windows with tabs and groupMembers");
+}
+
+// Test 16: Arrow navigation through grouped windows
+{
+  const mockData = {
+    clients: [
+      {
+        address: "0x1",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [50, 50],
+        size: [1800, 1100],
+        title: "Terminal",
+        class: "ghostty",
+        focusHistoryID: 1,
+        visible: false,
+        grouped: ["0x1", "0x2"]
+      },
+      {
+        address: "0x2",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [50, 50],
+        size: [1800, 1100],
+        title: "VS Code",
+        class: "code",
+        focusHistoryID: 0,
+        visible: true,
+        grouped: ["0x1", "0x2"]
+      },
+      {
+        address: "0x3",
+        mapped: true,
+        workspace: { id: 2 },
+        at: [0, 0],
+        size: [1920, 1080],
+        title: "Browser",
+        class: "brave",
+        focusHistoryID: 2,
+        visible: true,
+        grouped: []
+      }
+    ],
+    workspaces: [
+      { id: 1, name: "1" },
+      { id: 2, name: "2" }
+    ],
+    monitors: [
+      { id: 0, name: "eDP-1", width: 1920, height: 1200, x: 0, y: 0, focused: true }
+    ]
+  };
+
+  const parsed = wm.parseSnapshot(mockData, ["a", "s", "d"]);
+
+  // On Tab 1 ("0x1"), pressing right should navigate to Tab 2 ("0x2") in the same group
+  const navRight1 = nav.findSpatialTarget(parsed.workspaces, "0x1", 1, "right");
+  assert.strictEqual(navRight1.address, "0x2", "Moving right from Tab 1 should navigate to Tab 2");
+
+  // On Tab 2 ("0x2"), pressing right should exit the group to Workspace 2 ("0x3")
+  const navRight2 = nav.findSpatialTarget(parsed.workspaces, "0x2", 1, "right");
+  assert.strictEqual(navRight2.address, "0x3", "Moving right from last Tab 2 should move to next workspace");
+
+  // On Window 3 ("0x3"), pressing left should land on Tab 2 ("0x2") (the rightmost tab of the group)
+  const navLeft3 = nav.findSpatialTarget(parsed.workspaces, "0x3", 2, "left");
+  assert.strictEqual(navLeft3.address, "0x2", "Moving left into a group should select its rightmost tab");
+
+  // On Tab 2 ("0x2"), pressing left should navigate to Tab 1 ("0x1")
+  const navLeft2 = nav.findSpatialTarget(parsed.workspaces, "0x2", 1, "left");
+  assert.strictEqual(navLeft2.address, "0x1", "Moving left from Tab 2 should navigate to Tab 1");
+
+  // On Tab 1 ("0x1"), pressing down with no window below should cycle to Tab 2 ("0x2")
+  const navDown1 = nav.findSpatialTarget(parsed.workspaces, "0x1", 1, "down");
+  assert.strictEqual(navDown1.address, "0x2", "Moving down on Tab 1 with no window below should cycle to Tab 2");
+
+  // On Tab 2 ("0x2"), pressing down should wrap back to Tab 1 ("0x1")
+  const navDown2 = nav.findSpatialTarget(parsed.workspaces, "0x2", 1, "down");
+  assert.strictEqual(navDown2.address, "0x1", "Moving down on Tab 2 should wrap back to Tab 1");
+
+  // On Tab 1 ("0x1"), pressing up should cycle to Tab 2 ("0x2")
+  const navUp1 = nav.findSpatialTarget(parsed.workspaces, "0x1", 1, "up");
+  assert.strictEqual(navUp1.address, "0x2", "Moving up on Tab 1 should cycle to Tab 2");
+
+  console.log("  ✓ findSpatialTarget arrow navigation correctly navigates through grouped windows");
+}
+
 console.log("All unit tests passed successfully!");
+
+
 
