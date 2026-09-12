@@ -230,14 +230,59 @@ function parseSnapshot(data, wsLetters) {
             if (Math.abs(a.at[0] - b.at[0]) > 25) {
                 return a.at[0] - b.at[0];
             }
-            return a.at[1] - b.at[1];
+            if (Math.abs(a.at[1] - b.at[1]) > 25) {
+                return a.at[1] - b.at[1];
+            }
+            // If at the exact same position (e.g. grouped windows), preserve group order or focusHistoryID
+            if (a.grouped && b.grouped && a.grouped.length > 0 && b.grouped.length > 0) {
+                var idxA = a.grouped.indexOf(a.address);
+                var idxB = b.grouped.indexOf(b.address);
+                if (idxA !== -1 && idxB !== -1 && idxA !== idxB) {
+                    return idxA - idxB;
+                }
+            }
+            return a.focusHistoryID - b.focusHistoryID;
         });
+
+        // Pre-build address lookup for workspace windows to cross-reference group members
+        var wsAddrMap = {};
+        for (var mIdx = 0; mIdx < wsWindows.length; mIdx++) {
+            wsAddrMap[wsWindows[mIdx].address] = {
+                win: wsWindows[mIdx],
+                wsIndex: mIdx + 1
+            };
+        }
 
         var processedWindows = [];
         for (var k = 0; k < wsWindows.length; k++) {
             var win = wsWindows[k];
             var num = k + 1; // 1-based index
             var coords = normalizeWindowCoordinates(win, monBounds);
+
+            var isGrouped = Boolean(win.grouped && Array.isArray(win.grouped) && win.grouped.length > 1);
+            var groupIndex = isGrouped ? win.grouped.indexOf(win.address) : 0;
+            var groupLength = isGrouped ? win.grouped.length : 1;
+            var groupMembers = [];
+
+            if (isGrouped) {
+                for (var g = 0; g < win.grouped.length; g++) {
+                    var gAddr = win.grouped[g];
+                    var memberInfo = wsAddrMap[gAddr];
+                    if (memberInfo) {
+                        var mWin = memberInfo.win;
+                        groupMembers.push({
+                            address: mWin.address,
+                            title: mWin.title || mWin.initialTitle || mWin.class || "Window",
+                            clientClass: mWin.class || mWin.initialClass || "window",
+                            initialClass: mWin.initialClass || "",
+                            initialTitle: mWin.initialTitle || "",
+                            wsIndex: memberInfo.wsIndex,
+                            groupIndex: g,
+                            visible: Boolean(mWin.visible)
+                        });
+                    }
+                }
+            }
 
             processedWindows.push({
                 address: win.address,
@@ -250,6 +295,11 @@ function parseSnapshot(data, wsLetters) {
                 wsIndex: num,
                 focusHistoryID: win.focusHistoryID,
                 floating: win.floating,
+                visible: Boolean(win.visible),
+                isGrouped: isGrouped,
+                groupIndex: (groupIndex >= 0) ? groupIndex : 0,
+                groupLength: groupLength,
+                groupMembers: groupMembers,
                 normX: coords.normX,
                 normY: coords.normY,
                 normW: coords.normW,
@@ -302,6 +352,7 @@ function findClientData(workspacesData, address, fallbackClient) {
     }
 
     if (fallbackClient) {
+        var isGrp = Boolean(fallbackClient.grouped && Array.isArray(fallbackClient.grouped) && fallbackClient.grouped.length > 1);
         return {
             address: fallbackClient.address,
             title: fallbackClient.title || fallbackClient.class || "Window",
@@ -310,7 +361,11 @@ function findClientData(workspacesData, address, fallbackClient) {
             initialTitle: fallbackClient.initialTitle || "",
             wsLetter: "A",
             wsIndex: 1,
-            workspaceId: fallbackClient.workspace ? fallbackClient.workspace.id : 1
+            workspaceId: fallbackClient.workspace ? fallbackClient.workspace.id : 1,
+            isGrouped: isGrp,
+            groupIndex: isGrp ? fallbackClient.grouped.indexOf(fallbackClient.address) : 0,
+            groupLength: isGrp ? fallbackClient.grouped.length : 1,
+            groupMembers: []
         };
     }
     return null;

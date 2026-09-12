@@ -174,6 +174,45 @@ Rectangle {
                         font.pixelSize: Style.font.caption
                     }
                 }
+
+                // Group Tab Badge (Visible when selected window is part of a group)
+                Rectangle {
+                    height: Math.max(18, Style.space(19))
+                    width: rowGroupBadge.implicitWidth + 12
+                    radius: Math.max(2, Math.round(Style.cornerRadius * 0.25))
+                    color: Util.alpha(Color.accent, 0.15)
+                    border.width: 1
+                    border.color: Util.alpha(Color.accent, 0.4)
+                    visible: Boolean(root.selectedClientData && !root.selectedClientData.isWorkspace && root.selectedClientData.isGrouped)
+
+                    Row {
+                        id: rowGroupBadge
+                        anchors.centerIn: parent
+                        spacing: 4
+
+                        Text {
+                            text: "󰓩"
+                            color: Color.accent
+                            font.pixelSize: Style.font.caption
+                            font.family: Style.font.resolvedFamily || Style.font.family
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            text: {
+                                if (!root.selectedClientData || !root.selectedClientData.isGrouped) return "";
+                                var idx = (root.selectedClientData.groupIndex !== undefined) ? (root.selectedClientData.groupIndex + 1) : 1;
+                                var len = root.selectedClientData.groupLength || 2;
+                                return "Tab " + idx + " of " + len;
+                            }
+                            color: Color.accent
+                            font.bold: true
+                            font.family: Style.font.resolvedFamily || Style.font.family
+                            font.pixelSize: Style.font.caption
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+                }
             }
         }
     }
