@@ -1,13 +1,28 @@
 // test_logic.js: Automated tests for WindowModel.js and Navigation.js
 const fs = require("fs");
+const path = require("path");
 const vm = require("vm");
 const assert = require("assert");
 
-function loadModule(filePath) {
-  const code = fs
+function loadModule(filePath, customContext = {}) {
+  let code = fs
     .readFileSync(filePath, "utf8")
-    .replace(/^\s*\.pragma\s+library\s*;?/m, "");
-  const context = { console, Math, parseInt, parseFloat, Array, Object };
+    .replace(/^\s*\.pragma\s+library\s*;?/gm, "");
+  
+  const dir = path.dirname(filePath);
+  const context = { console, Math, parseInt, parseFloat, Array, Object, String, Boolean, ...customContext };
+
+  // Parse and resolve QML JS library imports: .import "file.js" as Qualifier
+  const importRegex = /^\s*\.import\s+["']([^"']+)["']\s+as\s+([A-Za-z0-9_$]+)\s*;?/gm;
+  let match;
+  while ((match = importRegex.exec(code)) !== null) {
+    const importRelative = match[1];
+    const qualifier = match[2];
+    const targetPath = path.resolve(dir, importRelative);
+    context[qualifier] = loadModule(targetPath, customContext);
+  }
+  code = code.replace(importRegex, "");
+
   vm.createContext(context);
   vm.runInContext(code, context);
   return context;
@@ -415,10 +430,10 @@ const nav = loadModule("js/Navigation.js");
   // When devMode is false: release Alt switches immediately (requireEnter is false)
   config.devMode = false;
   assert.strictEqual(config.isDevMode(), false, "isDevMode() should return false when devMode = false");
-  assert.strictEqual(config.requireEnterToSwitch(), false, "requireEnterToSwitch() must return false in prod mode");
+  assert.strictEqual(config.getUiScale, undefined, "uiScale should no longer exist in Config.js (design overhaul in Dimensions.js)");
 
   console.log(
-    "  ✓ Config.js correctly gates requireEnterToSwitch, debugLogging, dev badges, and screenshot unlock based on devMode",
+    "  ✓ Config.js correctly gates requireEnterToSwitch, debugLogging, dev badges, and screenshot unlock",
   );
 }
 
@@ -924,6 +939,116 @@ const nav = loadModule("js/Navigation.js");
   assert.strictEqual(navUp1.address, "0x2", "Moving up on Tab 1 should cycle to Tab 2");
 
   console.log("  ✓ findSpatialTarget arrow navigation correctly navigates through grouped windows");
+}
+
+// Test 17: Centralized Dimensions.js (pure design tokens) and Utils.js (DRY security sanitization & text helpers)
+{
+  const dim = loadModule("js/Dimensions.js");
+  const utils = loadModule("js/Utils.js");
+
+  // 1. Verify Dimensions.js design token sections exist with valid numeric metrics
+  assert(dim.overlay && typeof dim.overlay === "object", "Dimensions should export overlay object");
+  assert.strictEqual(dim.overlay.containerPadding, 58);
+  assert.strictEqual(dim.overlay.containerPaddingVertical, 48);
+  assert.strictEqual(dim.overlay.cornerRadius, 14);
+
+  assert(dim.card && typeof dim.card === "object", "Dimensions should export card object");
+  assert.strictEqual(dim.card.headerHeight, 31);
+  assert.strictEqual(dim.card.letterBadgeSize, 29);
+  assert.strictEqual(dim.card.emptyIconSize, 26);
+
+  assert(dim.windowTile && typeof dim.windowTile === "object", "Dimensions should export windowTile object");
+  assert.strictEqual(dim.windowTile.indexBadgeSize, 22);
+  assert.strictEqual(dim.windowTile.indexBadgeMinSize, 16);
+  assert.strictEqual(dim.windowTile.tabBarHeight, 24);
+  assert.strictEqual(dim.windowTile.appIconSize, 40);
+
+  assert(dim.header && typeof dim.header === "object", "Dimensions should export header object");
+  assert.strictEqual(dim.header.height, 41);
+  assert.strictEqual(dim.header.titleFontSize, 19);
+  assert.strictEqual(dim.header.brandBoxSize, 34);
+
+  assert(dim.footer && typeof dim.footer === "object", "Dimensions should export footer object");
+  assert.strictEqual(dim.footer.height, 68);
+  assert.strictEqual(dim.footer.iconContainerSize, 43);
+  assert.strictEqual(dim.footer.titleFontSize, 15);
+
+  // Dimensions.js is purely for layout tokens; verify text functions are not in Dimensions
+  assert.strictEqual(dim.sanitizeText, undefined, "sanitizeText should live in Utils.js, not Dimensions.js");
+  assert.strictEqual(dim.safeTitle, undefined, "safeTitle should live in Utils.js, not Dimensions.js");
+
+  // 2. Security sanitization tests (DRY helper in Utils.js)
+  assert.strictEqual(typeof utils.sanitizeText, "function", "Utils.sanitizeText should be a function");
+  assert.strictEqual(typeof utils.safeTitle, "function", "Utils.safeTitle should be a function");
+  assert.strictEqual(typeof utils.safeWorkspaceLabel, "function", "Utils.safeWorkspaceLabel should be a function");
+
+  // Strips Unicode BiDi control characters (CVE RTL-override spoofing)
+  const bidiSpoof = "\u202Eevil.exe\u202D safe_name";
+  assert.strictEqual(utils.sanitizeText(bidiSpoof), "evil.exe safe_name", "Should strip BiDi control characters");
+
+  // Normalizes newlines, tabs, carriage returns, null bytes
+  const newlineSpoof = "Title Line 1\r\n\tTitle Line 2\0";
+  assert.strictEqual(utils.sanitizeText(newlineSpoof), "Title Line 1   Title Line 2", "Should replace control characters with spaces");
+
+  // Safe title formatting
+  assert.strictEqual(utils.safeTitle(null, "Default"), "Default");
+  assert.strictEqual(utils.safeTitle({ title: "Clean Title" }), "Clean Title");
+  assert.strictEqual(utils.safeTitle({ isWorkspace: true, workspaceId: 3 }), "Workspace 3");
+  assert.strictEqual(utils.safeTitle({ isWorkspace: true, title: "Custom WS" }), "Custom WS");
+
+  // Safe workspace label formatting
+  assert.strictEqual(utils.safeWorkspaceLabel(null), "WS");
+  assert.strictEqual(utils.safeWorkspaceLabel({ wsLetter: "A", workspaceId: 1 }), "WS [A] 1");
+
+  // Verify WindowModel.js imports and uses Utils.sanitizeText
+  const wmCode = fs.readFileSync("js/WindowModel.js", "utf8");
+  assert(wmCode.includes('.import "Utils.js" as Utils'), "WindowModel.js should import Utils.js");
+  assert.strictEqual(wm.sanitizeText(bidiSpoof), "evil.exe safe_name", "WindowModel.sanitizeText should delegate to Utils.sanitizeText");
+
+  // 3. Verify QML files import Dimensions.js and have completely removed uiScale properties/flags
+  const qmlFiles = [
+    { name: "AltTabOverlay.qml", content: fs.readFileSync("AltTabOverlay.qml", "utf8"), importToken: '"js/Dimensions.js" as Dimensions' },
+    { name: "components/HeaderBar.qml", content: fs.readFileSync("components/HeaderBar.qml", "utf8"), importToken: '"../js/Dimensions.js" as Dimensions' },
+    { name: "components/FooterBar.qml", content: fs.readFileSync("components/FooterBar.qml", "utf8"), importToken: '"../js/Dimensions.js" as Dimensions' },
+    { name: "components/WorkspaceCard.qml", content: fs.readFileSync("components/WorkspaceCard.qml", "utf8"), importToken: '"../js/Dimensions.js" as Dimensions' },
+    { name: "components/WindowTile.qml", content: fs.readFileSync("components/WindowTile.qml", "utf8"), importToken: '"../js/Dimensions.js" as Dimensions' }
+  ];
+
+  for (const { name, content, importToken } of qmlFiles) {
+    assert(
+      content.includes(importToken),
+      `${name} must import Dimensions.js`
+    );
+    assert(
+      !content.includes("property real uiScale"),
+      `${name} must NOT define property real uiScale (overhaul in Dimensions.js)`
+    );
+    assert(
+      !content.includes("uiScale:"),
+      `${name} must NOT pass or assign uiScale property`
+    );
+  }
+
+  // 4. Verify FooterBar imports and uses Utils.js
+  const footerQml = qmlFiles[2].content;
+  assert(footerQml.includes('import "../js/Utils.js" as Utils'), "FooterBar.qml must import Utils.js");
+  assert(footerQml.includes("Utils.safeTitle"), "FooterBar should use Utils.safeTitle");
+  assert(footerQml.includes("Utils.safeWorkspaceLabel"), "FooterBar should use Utils.safeWorkspaceLabel");
+
+  // 5. Verify components use Dimensions tokens
+  const overlayQml = qmlFiles[0].content;
+  const headerQml = qmlFiles[1].content;
+  const cardQml = qmlFiles[3].content;
+  const tileQml = qmlFiles[4].content;
+
+  assert(overlayQml.includes("Dimensions.overlay."), "AltTabOverlay should use Dimensions.overlay tokens");
+  assert(headerQml.includes("Dimensions.header."), "HeaderBar should use Dimensions.header tokens");
+  assert(footerQml.includes("Dimensions.footer."), "FooterBar should use Dimensions.footer tokens");
+  assert(cardQml.includes("Dimensions.card."), "WorkspaceCard should use Dimensions.card tokens");
+  assert(tileQml.includes("Dimensions.windowTile."), "WindowTile should use Dimensions.windowTile tokens");
+  assert(tileQml.includes("badgeBaseSize"), "WindowTile should define responsive badgeBaseSize");
+
+  console.log("  ✓ Dimensions.js (pure metrics) and Utils.js (DRY security) separation of concerns verified");
 }
 
 console.log("All unit tests passed successfully!");

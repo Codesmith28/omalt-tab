@@ -1,8 +1,18 @@
 // WindowModel.js: Parses and normalizes Hyprland state snapshots for omalt-tab
 
 .pragma library
+.import "Utils.js" as Utils
 
 var DEFAULT_HOME_ROW_LETTERS = ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"];
+
+/**
+ * Sanitizes arbitrary text strings from Hyprland window snapshots to prevent
+ * rich-text injection, Unicode direction override spoofing, and layout disruption.
+ * Delegated to centralized js/Utils.js.
+ */
+function sanitizeText(raw) {
+    return Utils.sanitizeText(raw);
+}
 
 /**
  * Resolves the currently focused/active monitor from the monitor list,
@@ -272,10 +282,10 @@ function parseSnapshot(data, wsLetters) {
                         var mWin = memberInfo.win;
                         groupMembers.push({
                             address: mWin.address,
-                            title: mWin.title || mWin.initialTitle || mWin.class || "Window",
+                            title: sanitizeText(mWin.title || mWin.initialTitle || mWin.class || "Window"),
                             clientClass: mWin.class || mWin.initialClass || "window",
                             initialClass: mWin.initialClass || "",
-                            initialTitle: mWin.initialTitle || "",
+                            initialTitle: sanitizeText(mWin.initialTitle || ""),
                             wsIndex: memberInfo.wsIndex,
                             groupIndex: g,
                             visible: Boolean(mWin.visible)
@@ -286,10 +296,10 @@ function parseSnapshot(data, wsLetters) {
 
             processedWindows.push({
                 address: win.address,
-                title: win.title || win.initialTitle || win.class || "Window",
+                title: sanitizeText(win.title || win.initialTitle || win.class || "Window"),
                 clientClass: win.class || win.initialClass || "window",
                 initialClass: win.initialClass || "",
-                initialTitle: win.initialTitle || "",
+                initialTitle: sanitizeText(win.initialTitle || ""),
                 workspaceId: curWid,
                 wsLetter: letter.toUpperCase(),
                 wsIndex: num,
