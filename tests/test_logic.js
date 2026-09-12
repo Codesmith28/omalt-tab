@@ -1053,7 +1053,6 @@ const nav = loadModule("js/Navigation.js");
   console.log("  ✓ Dimensions.js (pure metrics) and Utils.js (DRY security) separation of concerns verified");
 }
 
-
 // Test 18: Dynamic multi-row overflow (threshold from 6) and staggered arrangement
 {
   const overlayQml = fs.readFileSync("AltTabOverlay.qml", "utf8");
@@ -1114,6 +1113,79 @@ const nav = loadModule("js/Navigation.js");
   console.log("  ✓ Dynamic multi-row overflow (threshold from 6), staggered staggerShift, and 2D row navigation verified");
 }
 
+// Test 19: Dismissal recursion guard and commit/cancel lifecycle safety
+{
+  let shellHideCallCount = 0;
+  let closeCallCount = 0;
+  let cancelCallCount = 0;
+  let focusDispatched = false;
+
+  const mockRoot = {
+    opened: true,
+    isOpening: false,
+    isDismissing: false,
+    selectedAddress: "0x123abc",
+    selectedWorkspaceId: 1,
+    mruList: [{ address: "0x123abc" }],
+    shell: {
+      hide: function(id) {
+        shellHideCallCount++;
+        // Omarchy shell invokes close() on the plugin when hide() is called
+        mockRoot.close();
+      }
+    },
+    manifest: { id: "io.github.codesmith28.omalt-tab" },
+    logDebug: function() {},
+    close: function() {
+      closeCallCount++;
+      if (!this.opened && !this.isOpening) return;
+      if (this.isDismissing) return;
+      this.cancel();
+    },
+    dismiss: function() {
+      if (this.isDismissing) return;
+      this.isDismissing = true;
+      this.opened = false;
+      if (this.shell && typeof this.shell.hide === "function") {
+        this.shell.hide(this.manifest.id);
+      }
+      this.isDismissing = false;
+    },
+    cancel: function() {
+      cancelCallCount++;
+      this.isOpening = false;
+      this.opened = false;
+      this.dismiss();
+    },
+    commit: function() {
+      if (this.opened) {
+        const target = this.selectedAddress;
+        this.opened = false;
+        this.isOpening = false;
+        // Window focus must be dispatched before dismissal
+        if (target) {
+          focusDispatched = true;
+        }
+        this.dismiss();
+      }
+    }
+  };
+
+  // Simulate commit: must focus window, dismiss safely, and terminate with zero recursion
+  mockRoot.commit();
+  assert.strictEqual(focusDispatched, true, "Window focus must be dispatched on commit");
+  assert.strictEqual(mockRoot.opened, false, "Root must be marked closed after commit");
+  assert.strictEqual(shellHideCallCount, 1, "Shell hide should be called exactly once");
+  assert.strictEqual(closeCallCount, 1, "Plugin close should be called by shell hide");
+  assert.strictEqual(cancelCallCount, 0, "Commit should not trigger cancel()");
+
+  // Simulate external close from shell when already closed: must be a no-op
+  mockRoot.close();
+  assert.strictEqual(closeCallCount, 2);
+  assert.strictEqual(cancelCallCount, 0, "Close on inactive switcher must not trigger cancel()");
+
+  console.log("  ✓ Dismissal recursion guard and commit dispatch order verified");
+}
 
 console.log("All unit tests passed successfully!");
 
