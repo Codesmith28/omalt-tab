@@ -1053,6 +1053,68 @@ const nav = loadModule("js/Navigation.js");
   console.log("  ✓ Dimensions.js (pure metrics) and Utils.js (DRY security) separation of concerns verified");
 }
 
+
+// Test 18: Dynamic multi-row overflow (threshold from 6) and staggered arrangement
+{
+  const overlayQml = fs.readFileSync("AltTabOverlay.qml", "utf8");
+
+  // 1. Verify threshold from 6 overflow logic in AltTabOverlay.qml
+  assert(overlayQml.includes("isMultiRow: count > 6"), "AltTabOverlay should set isMultiRow when count > 6 (threshold from 6)");
+  assert(overlayQml.includes("row1Count: isMultiRow ? Math.ceil(count / 2) : count"), "row1Count should split count evenly");
+  assert(overlayQml.includes("row2Count: isMultiRow ? (count - row1Count) : 0"), "row2Count should take remainder");
+  assert(overlayQml.includes("maxRowCards: Math.max(row1Count, row2Count)"), "maxRowCards should drive dynamicCardWidth to preserve sweet-spot size");
+
+  // 2. Verify staggered arrangement: not directly one below other
+  assert(overlayQml.includes("needsManualStagger: isMultiRow && (row1Count === row2Count)"), "needsManualStagger should detect equal row counts (like 10 workspaces)");
+  assert(overlayQml.includes("staggerShift: needsManualStagger ? Math.round(stepSize * 0.25) : 0"), "staggerShift should offset rows by quarter step for a total half-card stagger");
+  assert(overlayQml.includes("anchors.horizontalCenterOffset: -container.staggerShift"), "Row 1 should apply negative stagger offset");
+  assert(overlayQml.includes("anchors.horizontalCenterOffset: container.staggerShift"), "Row 2 should apply positive stagger offset");
+
+  // 3. Test Navigation.js 2D row-to-row jumping when workspaces > 6
+  // Generate mock 10 workspaces snapshot
+  const mock10Ws = [];
+  for (let i = 1; i <= 10; i++) {
+    mock10Ws.push({
+      id: i,
+      name: String(i),
+      letter: String.fromCharCode(65 + i - 1),
+      isEmpty: false,
+      windows: [
+        {
+          address: "0x" + i,
+          title: "App " + i,
+          workspaceId: i,
+          wsIndex: 1,
+          isGrouped: false,
+          normX: 0.1,
+          normY: 0.1,
+          normW: 0.8,
+          normH: 0.8
+        }
+      ]
+    });
+  }
+
+  // On Workspace 2 (index 1 in Row 1), moving down should jump to Workspace 7 (index 6 in Row 2)
+  const navDownRow = nav.findSpatialTarget(mock10Ws, "0x2", 2, "down");
+  assert.strictEqual(navDownRow.wsId, 7, "Moving down from Workspace 2 in Row 1 should jump to Workspace 7 in Row 2");
+  assert.strictEqual(navDownRow.address, "0x7");
+
+  // On Workspace 7 (index 6 in Row 2), moving up should jump back to Workspace 2 (index 1 in Row 1)
+  const navUpRow = nav.findSpatialTarget(mock10Ws, "0x7", 7, "up");
+  assert.strictEqual(navUpRow.wsId, 2, "Moving up from Workspace 7 in Row 2 should jump to Workspace 2 in Row 1");
+  assert.strictEqual(navUpRow.address, "0x2");
+
+  // On empty Workspace 3 (index 2 in Row 1), moving down should jump to empty Workspace 8
+  const emptyMock10Ws = mock10Ws.map(ws => ({ id: ws.id, name: ws.name, isEmpty: true, windows: [] }));
+  const navDownEmpty = nav.findSpatialTarget(emptyMock10Ws, null, 3, "down");
+  assert.strictEqual(navDownEmpty.wsId, 8, "Moving down from empty Workspace 3 in Row 1 should jump to Workspace 8 in Row 2");
+  assert.strictEqual(navDownEmpty.isWorkspace, true);
+
+  console.log("  ✓ Dynamic multi-row overflow (threshold from 6), staggered staggerShift, and 2D row navigation verified");
+}
+
+
 console.log("All unit tests passed successfully!");
 
 
