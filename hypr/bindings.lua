@@ -89,7 +89,7 @@ local function start_release_watcher()
     stop_release_watcher()
     is_switching = true
     -- In dev mode, releasing Alt does NOT commit; user must press Enter to switch
-    if is_dev_mode then return end
+    if read_dev_mode() then return end
 
     local checks = 0
     release_timer = hl.timer(function()
@@ -135,11 +135,13 @@ hl.define_submap("omalt-tab", function()
         bind_action(tostring(i), "window " .. i)
     end
 
-    if not is_dev_mode then
-        -- Fallback explicit release binds (production mode only: release Alt to commit)
-        hl.bind("Alt_L", commit_and_reset, { release = true })
-        hl.bind("Alt_R", commit_and_reset, { release = true })
+    -- Explicit release binds (guarded by dynamic read_dev_mode())
+    local function on_alt_released()
+        if read_dev_mode() then return end
+        commit_and_reset()
     end
+    hl.bind("Alt_L", on_alt_released, { release = true })
+    hl.bind("Alt_R", on_alt_released, { release = true })
 
     -- Manual confirmation (Return / KP_Enter / Space)
     -- Hyprland/XKB uses "Return" (not "Enter") for the main Enter key
@@ -153,8 +155,6 @@ hl.define_submap("omalt-tab", function()
         "SPACE"
     }
     for _, key in ipairs(confirm_keys) do
-        bind_action(key, "commit")
-        bind_action("SHIFT + " .. key, "commit")
         hl.bind(key, commit_and_reset)
         hl.bind("ALT + " .. key, commit_and_reset)
         hl.bind("SHIFT + " .. key, commit_and_reset)
@@ -180,8 +180,6 @@ hl.define_submap("omalt-tab", function()
     -- Cancel on Escape
     local cancel_keys = { "Escape", "ESCAPE" }
     for _, ck in ipairs(cancel_keys) do
-        bind_action(ck, "cancel")
-        bind_action("SHIFT + " .. ck, "cancel")
         hl.bind(ck, cancel_and_reset)
         hl.bind("ALT + " .. ck, cancel_and_reset)
         hl.bind("SHIFT + " .. ck, cancel_and_reset)
