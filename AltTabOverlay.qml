@@ -7,6 +7,7 @@ import qs.Commons
 import qs.Ui
 import "components"
 import "js/Config.js" as Config
+import "js/Dimensions.js" as Dimensions
 import "js/WindowModel.js" as WindowModel
 import "js/Navigation.js" as Navigation
 import "js/Icons.js" as Icons
@@ -115,15 +116,22 @@ Item {
         root.openWithOffset(offset);
     }
 
+    property bool isDismissing: false
+
     function close() {
+        if (!root.opened && !root.isOpening) return;
+        if (root.isDismissing) return;
         root.cancel();
     }
 
     function dismiss() {
+        if (root.isDismissing) return;
+        root.isDismissing = true;
         root.opened = false;
         if (root.shell && typeof root.shell.hide === "function") {
             root.shell.hide((root.manifest && root.manifest.id) || "io.github.codesmith28.omalt-tab");
         }
+        root.isDismissing = false;
     }
 
     function toggle(payloadJson) {
@@ -243,13 +251,12 @@ Item {
     }
 
     // Hyprland Atomic Focus Dispatcher
-    Process {
+    QtObject {
         id: focusDispatcher
 
         function dispatch(expr) {
-            command = ["hyprctl", "dispatch", expr];
-            running = false;
-            running = true;
+            root.logDebug("FocusDispatcher dispatch: " + expr);
+            Quickshell.execDetached(["hyprctl", "dispatch", expr]);
         }
 
         // Lua expression to raise window to top of z-order (handles floating, fullscreen, and maximized tiled windows)
@@ -303,7 +310,7 @@ Item {
             dispatch("(function() " + bringToTopExpr(address) + "; return hl.dsp.submap(\"reset\") end)()");
         }
 
-        function focus(address) {
+        function focusWindow(address) {
             if (!address || !/^0x[0-9a-fA-F]+$/.test(address)) return;
             dispatch("(function() " +
                 "hl.dispatch(hl.dsp.focus({ window = \"address:" + address + "\" })); " +
@@ -312,8 +319,14 @@ Item {
             "end)()");
         }
 
+        function focus(address) {
+            focusWindow(address);
+        }
+
         function switchWorkspace(id) {
-            dispatch("(function() hl.dispatch(hl.dsp.focus({ workspace = \"" + id + "\" })); return hl.dsp.submap(\"reset\") end)()");
+            var safeId = parseInt(id, 10);
+            var safeArg = isNaN(safeId) ? String(id).replace(/[^a-zA-Z0-9_-]/g, "") : String(safeId);
+            dispatch("(function() hl.dispatch(hl.dsp.focus({ workspace = \"" + safeArg + "\" })); return hl.dsp.submap(\"reset\") end)()");
         }
 
         function resetSubmap() {
@@ -394,12 +407,12 @@ Item {
                 root.pendingCommit = false;
                 root.opened = false;
                 root.isOpening = false;
-                root.dismiss();
                 if (root.selectedWorkspaceId > 0) {
                     focusDispatcher.switchWorkspace(root.selectedWorkspaceId);
                 } else {
                     focusDispatcher.resetSubmap();
                 }
+                root.dismiss();
                 return;
             }
 
@@ -434,7 +447,8 @@ Item {
             root.pendingCommit = false;
             var targetAddr = flatMru[root.initialIndexForOffset(flatMru.length, root.pendingOffset)].address;
             root.opened = false;
-            focusDispatcher.focus(targetAddr);
+            focusDispatcher.focusWindow(targetAddr);
+            root.dismiss();
             return;
         }
 
@@ -581,11 +595,12 @@ Item {
     function ensureWorkspaceVisible(wsIdx) {
         if (wsIdx < 0 || !wsFlickable || wsFlickable.width <= 0) return;
         var cardW = container.dynamicCardWidth;
-        var cardX = wsIdx * (cardW + 14);
+        var cardSpacing = Dimensions.overlay.cardSpacing;
+        var cardX = wsIdx * (cardW + cardSpacing);
         if (cardX < wsFlickable.contentX) {
-            wsFlickable.contentX = Math.max(0, cardX - 14);
+            wsFlickable.contentX = Math.max(0, cardX - cardSpacing);
         } else if (cardX + cardW > wsFlickable.contentX + wsFlickable.width) {
-            wsFlickable.contentX = Math.min(wsFlickable.contentWidth - wsFlickable.width, cardX + cardW - wsFlickable.width + 14);
+            wsFlickable.contentX = Math.min(wsFlickable.contentWidth - wsFlickable.width, cardX + cardW - wsFlickable.width + cardSpacing);
         }
     }
 
@@ -603,18 +618,20 @@ Item {
     function commit() {
         root.logDebug("Commit requested (selectedAddress=" + root.selectedAddress + ", wsId=" + root.selectedWorkspaceId + ")");
         if (root.opened) {
+            var targetAddr = (root.selectedAddress && root.selectedAddress.length > 0) ? root.selectedAddress : "";
+            var targetWsId = root.selectedWorkspaceId;
+
             root.opened = false;
             root.isOpening = false;
             root.pendingCommit = false;
-            root.dismiss();
-            if (root.selectedAddress && root.selectedAddress.length > 0) {
-                var addr = root.selectedAddress;
-                focusDispatcher.focus(addr);
+
+            if (targetAddr) {
+                focusDispatcher.focusWindow(targetAddr);
                 // Optimistically move focused window to top of MRU cache
                 if (root.mruList && root.mruList.length > 0) {
                     var idx = -1;
                     for (var i = 0; i < root.mruList.length; i++) {
-                        if (root.mruList[i].address === addr) {
+                        if (root.mruList[i].address === targetAddr) {
                             idx = i;
                             break;
                         }
@@ -625,18 +642,21 @@ Item {
                     }
                 }
                 refreshTimer.restart();
-            } else if (root.selectedWorkspaceId > 0) {
-                focusDispatcher.switchWorkspace(root.selectedWorkspaceId);
+            } else if (targetWsId > 0) {
+                focusDispatcher.switchWorkspace(targetWsId);
                 refreshTimer.restart();
             } else {
                 focusDispatcher.resetSubmap();
             }
+
+            root.dismiss();
         } else if (root.isOpening) {
             root.isOpening = false;
             root.pendingCommit = true;
         } else {
             root.pendingCommit = false;
             focusDispatcher.resetSubmap();
+            root.dismiss();
         }
     }
 
@@ -645,9 +665,9 @@ Item {
         root.isOpening = false;
         root.pendingCommit = false;
         root.opened = false;
-        root.dismiss();
         focusDispatcher.resetSubmap();
         refreshTimer.restart();
+        root.dismiss();
     }
 
     // -------------------------------------------------------------------------
@@ -745,33 +765,57 @@ Item {
 
             // Dynamic Sizing: adapts to number of workspace cards and screen bounds
             readonly property int count: Math.max(1, root.workspacesData.length)
-            readonly property int maxAllowedWidth: Math.max(win.width - 80, 360)
-            readonly property int maxAllowedHeight: Math.max(win.height - 80, 300)
+            readonly property int maxAllowedWidth: Math.max(win.width - Dimensions.overlay.screenMargin, Dimensions.overlay.minAllowedWidth)
+            readonly property int maxAllowedHeight: Math.max(win.height - Dimensions.overlay.screenMargin, Dimensions.overlay.minAllowedHeight)
 
-            // Dynamic card width: scales so that workspaces fit smoothly without overflow
+            // Dynamic multi-row overflow: threshold from 6 workspaces
+            readonly property bool isMultiRow: count > 6
+            readonly property int row1Count: isMultiRow ? Math.ceil(count / 2) : count
+            readonly property int row2Count: isMultiRow ? (count - row1Count) : 0
+            readonly property int maxRowCards: Math.max(row1Count, row2Count)
+
+            // Row data slices
+            readonly property var row1Data: root.workspacesData ? root.workspacesData.slice(0, row1Count) : []
+            readonly property var row2Data: (isMultiRow && root.workspacesData) ? root.workspacesData.slice(row1Count) : []
+
+            // Dynamic card width: scales based on maxRowCards so workspaces stay at the sweet spot
             readonly property int dynamicCardWidth: {
-                var maxAvail = Math.max(340, win.width - 120);
-                var fitWidth = Math.floor((maxAvail - (count - 1) * 14) / count);
-                var maxW = (count === 1) ? 320 : ((count === 2) ? 300 : 285);
-                var minW = 185;
+                var spacing = Dimensions.overlay.cardSpacing;
+                var maxAvail = Math.max(Dimensions.card.maxAvailBase, win.width - 100);
+                var fitWidth = Math.floor((maxAvail - (maxRowCards - 1) * spacing) / maxRowCards);
+                var maxW = (maxRowCards === 1) ? Dimensions.card.maxWidthSingle : ((maxRowCards === 2) ? Dimensions.card.maxWidthDouble : Dimensions.card.maxWidthMulti);
+                var minW = Dimensions.card.minWidth;
                 return Math.max(minW, Math.min(maxW, fitWidth));
             }
 
             // Viewport and Card height derived from monitor aspect ratio
             readonly property real monitorAspect: root.monitorAspect > 0.5 ? root.monitorAspect : (16 / 10)
-            readonly property int dynamicVpWidth: dynamicCardWidth - 16
+            readonly property int dynamicVpWidth: dynamicCardWidth - Dimensions.card.viewportInset
             readonly property int dynamicVpHeight: Math.round(dynamicVpWidth / monitorAspect)
-            readonly property int dynamicCardHeight: dynamicVpHeight + 48
+            readonly property int dynamicCardHeight: dynamicVpHeight + Dimensions.card.headerHeight + Dimensions.card.margins * 2
+
+            // Row dimensions and organic stagger offsets
+            readonly property int stepSize: dynamicCardWidth + Dimensions.overlay.cardSpacing
+            readonly property int row1Width: row1Count * dynamicCardWidth + (row1Count - 1) * Dimensions.overlay.cardSpacing
+            readonly property int row2Width: row2Count > 0 ? (row2Count * dynamicCardWidth + (row2Count - 1) * Dimensions.overlay.cardSpacing) : 0
+
+            // When rows have equal counts (e.g. 8 or 10), apply a half-step stagger shift
+            // When row counts differ (e.g. 7 or 9), natural centering already creates a 50% staggered honeycomb!
+            readonly property bool needsManualStagger: isMultiRow && (row1Count === row2Count)
+            readonly property int staggerShift: needsManualStagger ? Math.round(stepSize * 0.25) : 0
+            readonly property int cardsAreaWidth: Math.round(Math.max(row1Width, row2Width) + (needsManualStagger ? (stepSize * 0.5) : 0))
+            readonly property int cardsAreaHeight: isMultiRow
+                ? (dynamicCardHeight * 2 + Dimensions.overlay.rowSpacing)
+                : dynamicCardHeight
 
             // Row and content width
-            readonly property int wsRowWidth: count * dynamicCardWidth + (count - 1) * 14
             readonly property int minWidth: Math.max(headerBar.implicitWidth, footerBar.implicitWidth, dynamicCardWidth)
-            readonly property int naturalContentWidth: Math.max(wsRowWidth, minWidth)
+            readonly property int naturalContentWidth: Math.max(cardsAreaWidth, minWidth)
             readonly property int contentWidth: Math.min(naturalContentWidth, maxAllowedWidth)
 
-            width: contentWidth + 48
-            height: Math.min(contentCol.implicitHeight + 40, maxAllowedHeight)
-            radius: root.cornerRadius
+            width: contentWidth + Dimensions.overlay.containerPadding
+            height: Math.min(contentCol.implicitHeight + Dimensions.overlay.containerPaddingVertical, maxAllowedHeight)
+            radius: Dimensions.overlay.cornerRadius
             color: root.background
             borderSpec: root.borderSpec
 
@@ -786,7 +830,7 @@ Item {
                 id: contentCol
                 anchors.centerIn: parent
                 width: container.contentWidth
-                spacing: Style.spacing.panelGap
+                spacing: Dimensions.overlay.panelGap
 
                 HeaderBar {
                     id: headerBar
@@ -799,39 +843,85 @@ Item {
                 Flickable {
                     id: wsFlickable
                     width: parent.width
-                    height: container.dynamicCardHeight + 8
-                    contentWidth: container.wsRowWidth
+                    height: container.cardsAreaHeight + Dimensions.overlay.flickableExtraHeight
+                    contentWidth: Math.max(width, container.cardsAreaWidth)
                     contentHeight: height
                     boundsBehavior: Flickable.StopAtBounds
                     clip: true
 
                     Item {
-                        width: Math.max(wsFlickable.width, container.wsRowWidth)
+                        width: Math.max(wsFlickable.width, container.cardsAreaWidth)
                         height: parent.height
 
-                        Row {
-                            id: wsRow
-                            spacing: 14
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.verticalCenter: parent.verticalCenter
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: container.isMultiRow ? Dimensions.overlay.rowSpacing : 0
 
-                            Repeater {
-                                model: root.workspacesData
-                                WorkspaceCard {
-                                    wsData: modelData
-                                    selectedAddress: root.selectedAddress
-                                    selectedWorkspaceId: root.selectedWorkspaceId
-                                    cardWidth: container.dynamicCardWidth
-                                    cardHeight: container.dynamicCardHeight
-                                    appLibrary: root.appLibrary
-                                    devMode: root.devMode
-                                    onWindowClicked: addr => {
-                                        root.selectAddress(addr);
-                                        root.commit();
+                            // Row 1
+                            Item {
+                                width: container.row1Width
+                                height: container.dynamicCardHeight
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.horizontalCenterOffset: -container.staggerShift
+
+                                Row {
+                                    anchors.fill: parent
+                                    spacing: Dimensions.overlay.cardSpacing
+
+                                    Repeater {
+                                        model: container.row1Data
+                                        WorkspaceCard {
+                                            wsData: modelData
+                                            selectedAddress: root.selectedAddress
+                                            selectedWorkspaceId: root.selectedWorkspaceId
+                                            cardWidth: container.dynamicCardWidth
+                                            cardHeight: container.dynamicCardHeight
+                                            appLibrary: root.appLibrary
+                                            devMode: root.devMode
+                                            onWindowClicked: addr => {
+                                                root.selectAddress(addr);
+                                                root.commit();
+                                            }
+                                            onWorkspaceClicked: id => {
+                                                focusDispatcher.switchWorkspace(id);
+                                                root.cancel();
+                                            }
+                                        }
                                     }
-                                    onWorkspaceClicked: id => {
-                                        focusDispatcher.switchWorkspace(id);
-                                        root.cancel();
+                                }
+                            }
+
+                            // Row 2 (Visible when total workspaces > 6)
+                            Item {
+                                visible: container.isMultiRow && container.row2Count > 0
+                                width: container.row2Width
+                                height: container.isMultiRow ? container.dynamicCardHeight : 0
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.horizontalCenterOffset: container.staggerShift
+
+                                Row {
+                                    anchors.fill: parent
+                                    spacing: Dimensions.overlay.cardSpacing
+
+                                    Repeater {
+                                        model: container.row2Data
+                                        WorkspaceCard {
+                                            wsData: modelData
+                                            selectedAddress: root.selectedAddress
+                                            selectedWorkspaceId: root.selectedWorkspaceId
+                                            cardWidth: container.dynamicCardWidth
+                                            cardHeight: container.dynamicCardHeight
+                                            appLibrary: root.appLibrary
+                                            devMode: root.devMode
+                                            onWindowClicked: addr => {
+                                                root.selectAddress(addr);
+                                                root.commit();
+                                            }
+                                            onWorkspaceClicked: id => {
+                                                focusDispatcher.switchWorkspace(id);
+                                                root.cancel();
+                                            }
+                                        }
                                     }
                                 }
                             }

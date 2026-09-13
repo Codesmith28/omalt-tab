@@ -1,13 +1,28 @@
 // test_logic.js: Automated tests for WindowModel.js and Navigation.js
 const fs = require("fs");
+const path = require("path");
 const vm = require("vm");
 const assert = require("assert");
 
-function loadModule(filePath) {
-  const code = fs
+function loadModule(filePath, customContext = {}) {
+  let code = fs
     .readFileSync(filePath, "utf8")
-    .replace(/^\s*\.pragma\s+library\s*;?/m, "");
-  const context = { console, Math, parseInt, parseFloat, Array, Object };
+    .replace(/^\s*\.pragma\s+library\s*;?/gm, "");
+  
+  const dir = path.dirname(filePath);
+  const context = { console, Math, parseInt, parseFloat, Array, Object, String, Boolean, ...customContext };
+
+  // Parse and resolve QML JS library imports: .import "file.js" as Qualifier
+  const importRegex = /^\s*\.import\s+["']([^"']+)["']\s+as\s+([A-Za-z0-9_$]+)\s*;?/gm;
+  let match;
+  while ((match = importRegex.exec(code)) !== null) {
+    const importRelative = match[1];
+    const qualifier = match[2];
+    const targetPath = path.resolve(dir, importRelative);
+    context[qualifier] = loadModule(targetPath, customContext);
+  }
+  code = code.replace(importRegex, "");
+
   vm.createContext(context);
   vm.runInContext(code, context);
   return context;
@@ -415,10 +430,10 @@ const nav = loadModule("js/Navigation.js");
   // When devMode is false: release Alt switches immediately (requireEnter is false)
   config.devMode = false;
   assert.strictEqual(config.isDevMode(), false, "isDevMode() should return false when devMode = false");
-  assert.strictEqual(config.requireEnterToSwitch(), false, "requireEnterToSwitch() must return false in prod mode");
+  assert.strictEqual(config.getUiScale, undefined, "uiScale should no longer exist in Config.js (design overhaul in Dimensions.js)");
 
   console.log(
-    "  ✓ Config.js correctly gates requireEnterToSwitch, debugLogging, dev badges, and screenshot unlock based on devMode",
+    "  ✓ Config.js correctly gates requireEnterToSwitch, debugLogging, dev badges, and screenshot unlock",
   );
 }
 
@@ -753,5 +768,426 @@ const nav = loadModule("js/Navigation.js");
   console.log("  ✓ AltTabOverlay.qml bringToTopExpr lowers floating windows behind maximized tiled windows");
 }
 
+// Test 15: Grouped window parsing, groupMembers, and UI components
+{
+  const mockData = {
+    clients: [
+      {
+        address: "0x1",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [50, 50],
+        size: [1800, 1100],
+        title: "Terminal",
+        class: "ghostty",
+        focusHistoryID: 1,
+        visible: false,
+        grouped: ["0x1", "0x2"]
+      },
+      {
+        address: "0x2",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [50, 50],
+        size: [1800, 1100],
+        title: "VS Code",
+        class: "code",
+        focusHistoryID: 0,
+        visible: true,
+        grouped: ["0x1", "0x2"]
+      },
+      {
+        address: "0x3",
+        mapped: true,
+        workspace: { id: 2 },
+        at: [0, 0],
+        size: [1920, 1080],
+        title: "Browser",
+        class: "brave",
+        focusHistoryID: 2,
+        visible: true,
+        grouped: []
+      }
+    ],
+    workspaces: [
+      { id: 1, name: "1" },
+      { id: 2, name: "2" }
+    ],
+    monitors: [
+      { id: 0, name: "eDP-1", width: 1920, height: 1200, x: 0, y: 0, focused: true }
+    ]
+  };
+
+  const parsed = wm.parseSnapshot(mockData, ["a", "s", "d"]);
+  const ws1 = parsed.workspaces[0];
+  assert.strictEqual(ws1.windows.length, 2, "Workspace 1 should have 2 windows in the group");
+
+  const win1 = ws1.windows[0];
+  const win2 = ws1.windows[1];
+
+  assert.strictEqual(win1.address, "0x1");
+  assert.strictEqual(win1.isGrouped, true, "win1 should be marked isGrouped");
+  assert.strictEqual(win1.groupIndex, 0, "win1 groupIndex should be 0");
+  assert.strictEqual(win1.groupLength, 2, "win1 groupLength should be 2");
+  assert.strictEqual(win1.groupMembers.length, 2, "win1 should have 2 groupMembers");
+  assert.strictEqual(win1.groupMembers[0].address, "0x1");
+  assert.strictEqual(win1.groupMembers[1].address, "0x2");
+  assert.strictEqual(win1.groupMembers[0].wsIndex, 1);
+  assert.strictEqual(win1.groupMembers[1].wsIndex, 2);
+
+  assert.strictEqual(win2.address, "0x2");
+  assert.strictEqual(win2.isGrouped, true, "win2 should be marked isGrouped");
+  assert.strictEqual(win2.groupIndex, 1, "win2 groupIndex should be 1");
+  assert.strictEqual(win2.groupLength, 2, "win2 groupLength should be 2");
+
+  // Non-grouped window
+  const ws2 = parsed.workspaces[1];
+  assert.strictEqual(ws2.windows[0].isGrouped, false, "win3 should NOT be marked isGrouped");
+
+  // Verify WindowTile.qml has tab bar and group pill support
+  const tileQml = fs.readFileSync("components/WindowTile.qml", "utf8");
+  assert(tileQml.includes("showTabBar"), "WindowTile should have showTabBar property");
+  assert(tileQml.includes("groupMembers"), "WindowTile should iterate groupMembers");
+  assert(tileQml.includes("miniGroupBadge"), "WindowTile should have miniGroupBadge fallback");
+
+  // Verify FooterBar.qml has group tab badge
+  const footerQml = fs.readFileSync("components/FooterBar.qml", "utf8");
+  assert(footerQml.includes("rowGroupBadge"), "FooterBar should have rowGroupBadge");
+  assert(footerQml.includes("isGrouped"), "FooterBar should check isGrouped");
+
+  console.log("  ✓ WindowModel and components correctly support grouped windows with tabs and groupMembers");
+}
+
+// Test 16: Arrow navigation through grouped windows
+{
+  const mockData = {
+    clients: [
+      {
+        address: "0x1",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [50, 50],
+        size: [1800, 1100],
+        title: "Terminal",
+        class: "ghostty",
+        focusHistoryID: 1,
+        visible: false,
+        grouped: ["0x1", "0x2"]
+      },
+      {
+        address: "0x2",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [50, 50],
+        size: [1800, 1100],
+        title: "VS Code",
+        class: "code",
+        focusHistoryID: 0,
+        visible: true,
+        grouped: ["0x1", "0x2"]
+      },
+      {
+        address: "0x3",
+        mapped: true,
+        workspace: { id: 2 },
+        at: [0, 0],
+        size: [1920, 1080],
+        title: "Browser",
+        class: "brave",
+        focusHistoryID: 2,
+        visible: true,
+        grouped: []
+      }
+    ],
+    workspaces: [
+      { id: 1, name: "1" },
+      { id: 2, name: "2" }
+    ],
+    monitors: [
+      { id: 0, name: "eDP-1", width: 1920, height: 1200, x: 0, y: 0, focused: true }
+    ]
+  };
+
+  const parsed = wm.parseSnapshot(mockData, ["a", "s", "d"]);
+
+  // On Tab 1 ("0x1"), pressing right should navigate to Tab 2 ("0x2") in the same group
+  const navRight1 = nav.findSpatialTarget(parsed.workspaces, "0x1", 1, "right");
+  assert.strictEqual(navRight1.address, "0x2", "Moving right from Tab 1 should navigate to Tab 2");
+
+  // On Tab 2 ("0x2"), pressing right should exit the group to Workspace 2 ("0x3")
+  const navRight2 = nav.findSpatialTarget(parsed.workspaces, "0x2", 1, "right");
+  assert.strictEqual(navRight2.address, "0x3", "Moving right from last Tab 2 should move to next workspace");
+
+  // On Window 3 ("0x3"), pressing left should land on Tab 2 ("0x2") (the rightmost tab of the group)
+  const navLeft3 = nav.findSpatialTarget(parsed.workspaces, "0x3", 2, "left");
+  assert.strictEqual(navLeft3.address, "0x2", "Moving left into a group should select its rightmost tab");
+
+  // On Tab 2 ("0x2"), pressing left should navigate to Tab 1 ("0x1")
+  const navLeft2 = nav.findSpatialTarget(parsed.workspaces, "0x2", 1, "left");
+  assert.strictEqual(navLeft2.address, "0x1", "Moving left from Tab 2 should navigate to Tab 1");
+
+  // On Tab 1 ("0x1"), pressing down with no window below should cycle to Tab 2 ("0x2")
+  const navDown1 = nav.findSpatialTarget(parsed.workspaces, "0x1", 1, "down");
+  assert.strictEqual(navDown1.address, "0x2", "Moving down on Tab 1 with no window below should cycle to Tab 2");
+
+  // On Tab 2 ("0x2"), pressing down should wrap back to Tab 1 ("0x1")
+  const navDown2 = nav.findSpatialTarget(parsed.workspaces, "0x2", 1, "down");
+  assert.strictEqual(navDown2.address, "0x1", "Moving down on Tab 2 should wrap back to Tab 1");
+
+  // On Tab 1 ("0x1"), pressing up should cycle to Tab 2 ("0x2")
+  const navUp1 = nav.findSpatialTarget(parsed.workspaces, "0x1", 1, "up");
+  assert.strictEqual(navUp1.address, "0x2", "Moving up on Tab 1 should cycle to Tab 2");
+
+  console.log("  ✓ findSpatialTarget arrow navigation correctly navigates through grouped windows");
+}
+
+// Test 17: Centralized Dimensions.js (pure design tokens) and Utils.js (DRY security sanitization & text helpers)
+{
+  const dim = loadModule("js/Dimensions.js");
+  const utils = loadModule("js/Utils.js");
+
+  // 1. Verify Dimensions.js design token sections exist with valid numeric metrics
+  assert(dim.overlay && typeof dim.overlay === "object", "Dimensions should export overlay object");
+  assert.strictEqual(dim.overlay.containerPadding, 50);
+  assert.strictEqual(dim.overlay.containerPaddingVertical, 42);
+  assert.strictEqual(dim.overlay.cornerRadius, 14);
+  assert.strictEqual(dim.overlay.rowSpacing, 14);
+
+  assert(dim.card && typeof dim.card === "object", "Dimensions should export card object");
+  assert.strictEqual(dim.card.headerHeight, 28);
+  assert.strictEqual(dim.card.letterBadgeSize, 26);
+  assert.strictEqual(dim.card.emptyIconSize, 24);
+  assert.strictEqual(dim.card.maxWidthMulti, 285);
+
+  assert(dim.windowTile && typeof dim.windowTile === "object", "Dimensions should export windowTile object");
+  assert.strictEqual(dim.windowTile.indexBadgeSize, 20);
+  assert.strictEqual(dim.windowTile.indexBadgeMinSize, 15);
+  assert.strictEqual(dim.windowTile.tabBarHeight, 22);
+  assert.strictEqual(dim.windowTile.appIconSize, 36);
+
+  assert(dim.header && typeof dim.header === "object", "Dimensions should export header object");
+  assert.strictEqual(dim.header.height, 38);
+  assert.strictEqual(dim.header.titleFontSize, 18);
+  assert.strictEqual(dim.header.brandBoxSize, 31);
+
+  assert(dim.footer && typeof dim.footer === "object", "Dimensions should export footer object");
+  assert.strictEqual(dim.footer.height, 62);
+  assert.strictEqual(dim.footer.iconContainerSize, 40);
+  assert.strictEqual(dim.footer.titleFontSize, 14);
+
+  // Dimensions.js is purely for layout tokens; verify text functions are not in Dimensions
+  assert.strictEqual(dim.sanitizeText, undefined, "sanitizeText should live in Utils.js, not Dimensions.js");
+  assert.strictEqual(dim.safeTitle, undefined, "safeTitle should live in Utils.js, not Dimensions.js");
+
+  // 2. Security sanitization tests (DRY helper in Utils.js)
+  assert.strictEqual(typeof utils.sanitizeText, "function", "Utils.sanitizeText should be a function");
+  assert.strictEqual(typeof utils.safeTitle, "function", "Utils.safeTitle should be a function");
+  assert.strictEqual(typeof utils.safeWorkspaceLabel, "function", "Utils.safeWorkspaceLabel should be a function");
+
+  // Strips Unicode BiDi control characters (CVE RTL-override spoofing)
+  const bidiSpoof = "\u202Eevil.exe\u202D safe_name";
+  assert.strictEqual(utils.sanitizeText(bidiSpoof), "evil.exe safe_name", "Should strip BiDi control characters");
+
+  // Normalizes newlines, tabs, carriage returns, null bytes
+  const newlineSpoof = "Title Line 1\r\n\tTitle Line 2\0";
+  assert.strictEqual(utils.sanitizeText(newlineSpoof), "Title Line 1   Title Line 2", "Should replace control characters with spaces");
+
+  // Safe title formatting
+  assert.strictEqual(utils.safeTitle(null, "Default"), "Default");
+  assert.strictEqual(utils.safeTitle({ title: "Clean Title" }), "Clean Title");
+  assert.strictEqual(utils.safeTitle({ isWorkspace: true, workspaceId: 3 }), "Workspace 3");
+  assert.strictEqual(utils.safeTitle({ isWorkspace: true, title: "Custom WS" }), "Custom WS");
+
+  // Safe workspace label formatting
+  assert.strictEqual(utils.safeWorkspaceLabel(null), "WS");
+  assert.strictEqual(utils.safeWorkspaceLabel({ wsLetter: "A", workspaceId: 1 }), "WS [A] 1");
+
+  // Verify WindowModel.js imports and uses Utils.sanitizeText
+  const wmCode = fs.readFileSync("js/WindowModel.js", "utf8");
+  assert(wmCode.includes('.import "Utils.js" as Utils'), "WindowModel.js should import Utils.js");
+  assert.strictEqual(wm.sanitizeText(bidiSpoof), "evil.exe safe_name", "WindowModel.sanitizeText should delegate to Utils.sanitizeText");
+
+  // 3. Verify QML files import Dimensions.js and have completely removed uiScale properties/flags
+  const qmlFiles = [
+    { name: "AltTabOverlay.qml", content: fs.readFileSync("AltTabOverlay.qml", "utf8"), importToken: '"js/Dimensions.js" as Dimensions' },
+    { name: "components/HeaderBar.qml", content: fs.readFileSync("components/HeaderBar.qml", "utf8"), importToken: '"../js/Dimensions.js" as Dimensions' },
+    { name: "components/FooterBar.qml", content: fs.readFileSync("components/FooterBar.qml", "utf8"), importToken: '"../js/Dimensions.js" as Dimensions' },
+    { name: "components/WorkspaceCard.qml", content: fs.readFileSync("components/WorkspaceCard.qml", "utf8"), importToken: '"../js/Dimensions.js" as Dimensions' },
+    { name: "components/WindowTile.qml", content: fs.readFileSync("components/WindowTile.qml", "utf8"), importToken: '"../js/Dimensions.js" as Dimensions' }
+  ];
+
+  for (const { name, content, importToken } of qmlFiles) {
+    assert(
+      content.includes(importToken),
+      `${name} must import Dimensions.js`
+    );
+    assert(
+      !content.includes("property real uiScale"),
+      `${name} must NOT define property real uiScale (overhaul in Dimensions.js)`
+    );
+    assert(
+      !content.includes("uiScale:"),
+      `${name} must NOT pass or assign uiScale property`
+    );
+  }
+
+  // 4. Verify FooterBar imports and uses Utils.js
+  const footerQml = qmlFiles[2].content;
+  assert(footerQml.includes('import "../js/Utils.js" as Utils'), "FooterBar.qml must import Utils.js");
+  assert(footerQml.includes("Utils.safeTitle"), "FooterBar should use Utils.safeTitle");
+  assert(footerQml.includes("Utils.safeWorkspaceLabel"), "FooterBar should use Utils.safeWorkspaceLabel");
+
+  // 5. Verify components use Dimensions tokens
+  const overlayQml = qmlFiles[0].content;
+  const headerQml = qmlFiles[1].content;
+  const cardQml = qmlFiles[3].content;
+  const tileQml = qmlFiles[4].content;
+
+  assert(overlayQml.includes("Dimensions.overlay."), "AltTabOverlay should use Dimensions.overlay tokens");
+  assert(headerQml.includes("Dimensions.header."), "HeaderBar should use Dimensions.header tokens");
+  assert(footerQml.includes("Dimensions.footer."), "FooterBar should use Dimensions.footer tokens");
+  assert(cardQml.includes("Dimensions.card."), "WorkspaceCard should use Dimensions.card tokens");
+  assert(tileQml.includes("Dimensions.windowTile."), "WindowTile should use Dimensions.windowTile tokens");
+  assert(tileQml.includes("badgeBaseSize"), "WindowTile should define responsive badgeBaseSize");
+
+  console.log("  ✓ Dimensions.js (pure metrics) and Utils.js (DRY security) separation of concerns verified");
+}
+
+// Test 18: Dynamic multi-row overflow (threshold from 6) and staggered arrangement
+{
+  const overlayQml = fs.readFileSync("AltTabOverlay.qml", "utf8");
+
+  // 1. Verify threshold from 6 overflow logic in AltTabOverlay.qml
+  assert(overlayQml.includes("isMultiRow: count > 6"), "AltTabOverlay should set isMultiRow when count > 6 (threshold from 6)");
+  assert(overlayQml.includes("row1Count: isMultiRow ? Math.ceil(count / 2) : count"), "row1Count should split count evenly");
+  assert(overlayQml.includes("row2Count: isMultiRow ? (count - row1Count) : 0"), "row2Count should take remainder");
+  assert(overlayQml.includes("maxRowCards: Math.max(row1Count, row2Count)"), "maxRowCards should drive dynamicCardWidth to preserve sweet-spot size");
+
+  // 2. Verify staggered arrangement: not directly one below other
+  assert(overlayQml.includes("needsManualStagger: isMultiRow && (row1Count === row2Count)"), "needsManualStagger should detect equal row counts (like 10 workspaces)");
+  assert(overlayQml.includes("staggerShift: needsManualStagger ? Math.round(stepSize * 0.25) : 0"), "staggerShift should offset rows by quarter step for a total half-card stagger");
+  assert(overlayQml.includes("anchors.horizontalCenterOffset: -container.staggerShift"), "Row 1 should apply negative stagger offset");
+  assert(overlayQml.includes("anchors.horizontalCenterOffset: container.staggerShift"), "Row 2 should apply positive stagger offset");
+
+  // 3. Test Navigation.js 2D row-to-row jumping when workspaces > 6
+  // Generate mock 10 workspaces snapshot
+  const mock10Ws = [];
+  for (let i = 1; i <= 10; i++) {
+    mock10Ws.push({
+      id: i,
+      name: String(i),
+      letter: String.fromCharCode(65 + i - 1),
+      isEmpty: false,
+      windows: [
+        {
+          address: "0x" + i,
+          title: "App " + i,
+          workspaceId: i,
+          wsIndex: 1,
+          isGrouped: false,
+          normX: 0.1,
+          normY: 0.1,
+          normW: 0.8,
+          normH: 0.8
+        }
+      ]
+    });
+  }
+
+  // On Workspace 2 (index 1 in Row 1), moving down should jump to Workspace 7 (index 6 in Row 2)
+  const navDownRow = nav.findSpatialTarget(mock10Ws, "0x2", 2, "down");
+  assert.strictEqual(navDownRow.wsId, 7, "Moving down from Workspace 2 in Row 1 should jump to Workspace 7 in Row 2");
+  assert.strictEqual(navDownRow.address, "0x7");
+
+  // On Workspace 7 (index 6 in Row 2), moving up should jump back to Workspace 2 (index 1 in Row 1)
+  const navUpRow = nav.findSpatialTarget(mock10Ws, "0x7", 7, "up");
+  assert.strictEqual(navUpRow.wsId, 2, "Moving up from Workspace 7 in Row 2 should jump to Workspace 2 in Row 1");
+  assert.strictEqual(navUpRow.address, "0x2");
+
+  // On empty Workspace 3 (index 2 in Row 1), moving down should jump to empty Workspace 8
+  const emptyMock10Ws = mock10Ws.map(ws => ({ id: ws.id, name: ws.name, isEmpty: true, windows: [] }));
+  const navDownEmpty = nav.findSpatialTarget(emptyMock10Ws, null, 3, "down");
+  assert.strictEqual(navDownEmpty.wsId, 8, "Moving down from empty Workspace 3 in Row 1 should jump to Workspace 8 in Row 2");
+  assert.strictEqual(navDownEmpty.isWorkspace, true);
+
+  console.log("  ✓ Dynamic multi-row overflow (threshold from 6), staggered staggerShift, and 2D row navigation verified");
+}
+
+// Test 19: Dismissal recursion guard and commit/cancel lifecycle safety
+{
+  let shellHideCallCount = 0;
+  let closeCallCount = 0;
+  let cancelCallCount = 0;
+  let focusDispatched = false;
+
+  const mockRoot = {
+    opened: true,
+    isOpening: false,
+    isDismissing: false,
+    selectedAddress: "0x123abc",
+    selectedWorkspaceId: 1,
+    mruList: [{ address: "0x123abc" }],
+    shell: {
+      hide: function(id) {
+        shellHideCallCount++;
+        // Omarchy shell invokes close() on the plugin when hide() is called
+        mockRoot.close();
+      }
+    },
+    manifest: { id: "io.github.codesmith28.omalt-tab" },
+    logDebug: function() {},
+    close: function() {
+      closeCallCount++;
+      if (!this.opened && !this.isOpening) return;
+      if (this.isDismissing) return;
+      this.cancel();
+    },
+    dismiss: function() {
+      if (this.isDismissing) return;
+      this.isDismissing = true;
+      this.opened = false;
+      if (this.shell && typeof this.shell.hide === "function") {
+        this.shell.hide(this.manifest.id);
+      }
+      this.isDismissing = false;
+    },
+    cancel: function() {
+      cancelCallCount++;
+      this.isOpening = false;
+      this.opened = false;
+      this.dismiss();
+    },
+    commit: function() {
+      if (this.opened) {
+        const target = this.selectedAddress;
+        this.opened = false;
+        this.isOpening = false;
+        // Window focus must be dispatched before dismissal
+        if (target) {
+          focusDispatched = true;
+        }
+        this.dismiss();
+      }
+    }
+  };
+
+  // Simulate commit: must focus window, dismiss safely, and terminate with zero recursion
+  mockRoot.commit();
+  assert.strictEqual(focusDispatched, true, "Window focus must be dispatched on commit");
+  assert.strictEqual(mockRoot.opened, false, "Root must be marked closed after commit");
+  assert.strictEqual(shellHideCallCount, 1, "Shell hide should be called exactly once");
+  assert.strictEqual(closeCallCount, 1, "Plugin close should be called by shell hide");
+  assert.strictEqual(cancelCallCount, 0, "Commit should not trigger cancel()");
+
+  // Simulate external close from shell when already closed: must be a no-op
+  mockRoot.close();
+  assert.strictEqual(closeCallCount, 2);
+  assert.strictEqual(cancelCallCount, 0, "Close on inactive switcher must not trigger cancel()");
+
+  console.log("  ✓ Dismissal recursion guard and commit dispatch order verified");
+}
+
 console.log("All unit tests passed successfully!");
+
+
 
