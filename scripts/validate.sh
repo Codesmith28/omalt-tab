@@ -20,6 +20,7 @@ for s in "$SCRIPT_DIR"/*.sh; do
   bash -n "$s"
 done
 python3 -m py_compile "$SCRIPT_DIR/clean-bindings.py"
+node --check "$SCRIPT_DIR/submit-marketplace-update.mjs"
 
 if command -v luac >/dev/null 2>&1; then
   echo "--> Checking Hyprland bindings Lua syntax..."

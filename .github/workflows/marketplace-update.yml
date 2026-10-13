@@ -1,0 +1,70 @@
+name: CI & Marketplace Update
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Run Unit Tests & Syntax Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies (lua)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y lua5.4
+          sudo update-alternatives --install /usr/bin/luac luac /usr/bin/luac5.4 100 2>/dev/null || true
+
+      - name: Run unit tests
+        run: make test
+
+      - name: Validate scripts and syntaxes
+        run: scripts/validate.sh
+
+  marketplace-update:
+    name: Submit Marketplace Verification Issue
+    needs: test
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Submit verification request to Omarchy Marketplace
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          MARKETPLACE_TOKEN: ${{ secrets.MARKETPLACE_TOKEN || secrets.GH_PAT || secrets.MARKETPLACE_SUBMISSION_TOKEN || secrets.PAT }}
+        run: |
+          node scripts/submit-marketplace-update.mjs
