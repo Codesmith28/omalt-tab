@@ -6,8 +6,7 @@
 
 [![Omarchy Plugin](https://img.shields.io/badge/Omarchy-Plugin-3b82f6.svg?style=for-the-badge&logo=archlinux&logoColor=white)](https://omarchy.org)
 [![Quickshell](https://img.shields.io/badge/Quickshell-0.3.1-f59e0b.svg?style=for-the-badge)](https://quickshell.outfoxxed.me)
-[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-8b5cf6.svg?style=for-the-badge)](LICENSE)
-[![Tests Passing](https://img.shields.io/badge/Tests-19%20Passing-10b981.svg?style=for-the-badge)](tests/test_logic.js)
+[![Tests Passing](https://img.shields.io/badge/Tests-22%20Passing-10b981.svg?style=for-the-badge)](tests/)
 
 <br/>
 
@@ -270,7 +269,7 @@ omalt-tab/
   Desktop hooks and IPC dispatching. Contains the Omarchy keybinding submap configuration with dynamic Alt-release watcher (`bindings.lua`) and the sub-millisecond UNIX domain socket client (`omalt-tab-client`).
 
 - **`tests/` (Verification Suite)**:
-  Automated Node.js regression test suite (`test_logic.js`) validating coordinate normalization math, spatial traversal algorithms, empty workspace handling, icon resolution fallbacks, grouped window tabs, multi-row overflow & stagger math, security sanitization, and dismissal recursion safety.
+  Modular automated Node.js regression test suites validating coordinate normalization math, monitor scaling, spatial traversal algorithms, empty workspace handling, icon resolution fallbacks, grouped window tabs, multi-row overflow & stagger math, security sanitization, and dismissal recursion safety.
 
 - **`demo/` (Showcase Media)**:
   High-resolution media assets including the lossless showcase animation (`demo.gif`) and desktop screenshots.
@@ -285,13 +284,12 @@ All core snapshot parsing, empty workspace detection, home-row jumping, grouped 
 make test
 ```
 
-### Test Suite Highlights (19 Tests)
-- **Snapshot & Geometry**: Usable geometry normalization, menu-bar exclusion, multi-monitor bounds.
-- **Grouped Windows**: Hyprland tab group detection, member extraction, and tab bar models.
-- **Spatial Navigation**: 2D arrow traversal across windows, intra-group tabs, and row-to-row jumping (> 6 workspaces).
-- **Multi-Row & Stagger**: Threshold from 6 overflow logic and half-card brickwork `staggerShift` calculations.
-- **Security & Tokens**: CVE BiDi control character stripping, plain-text sinks, and pure token separation in `Dimensions.js`.
-- **Lifecycle & Dismissal**: Circular recursion prevention on `shell.hide()` and atomic `focusWindow()` dispatching.
+### Modular Test Suites (22 Tests)
+- **`test_window_model.js` (Snapshot & Geometry)**: Usable geometry normalization, monitor scaling factors (1.25x, 1.5x, 2.0x), menu-bar exclusion, multi-monitor bounds, and Hyprland grouped window tab models.
+- **`test_navigation.js` (Spatial Navigation)**: 2D arrow traversal across windows, home-row letter jumping, intra-group tab navigation, and row-to-row jumping (> 6 workspaces).
+- **`test_icons.js` (Icons & Resolvers)**: FreeDesktop candidate lookup, Web Apps, PWAs, DesktopEntries, and fallbacks.
+- **`test_overlay_lifecycle.js` (Lifecycle, Tokens & Safety)**: Circular recursion prevention on `shell.hide()`, atomic `focusWindow()` dispatching, CVE BiDi control character stripping, plain-text sinks, and pure token separation in `Dimensions.js`.
+- **`test_integration_scripts.js` (Integration & Packaging)**: Install notification flow, `scripts/uninstall.sh` safe execution ordering, and `Makefile` uninstall target safety.
 
 To run the full validation suite (manifest validation, bash syntax checks, lua syntax checks, unit tests):
 
