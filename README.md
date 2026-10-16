@@ -5,8 +5,7 @@
 **An ergonomic, race-condition-free Quickshell Alt+Tab window switcher with home-row workspace navigation, native Hyprland grouped window tabs, dynamic multi-row overflow, and spatial miniature desktop layout for Omarchy.**
 
 [![Omarchy Plugin](https://img.shields.io/badge/Omarchy-Plugin-3b82f6.svg?style=for-the-badge&logo=archlinux&logoColor=white)](https://omarchy.org)
-[![Quickshell](https://img.shields.io/badge/Quickshell-0.3.1-f59e0b.svg?style=for-the-badge)](https://quickshell.outfoxxed.me)
-[![Tests Passing](https://img.shields.io/badge/Tests-22%20Passing-10b981.svg?style=for-the-badge)](tests/)
+[![Tests Passing](https://img.shields.io/badge/Tests-23%20Passing-10b981.svg?style=for-the-badge)](tests/)
 
 <br/>
 
@@ -284,10 +283,10 @@ All core snapshot parsing, empty workspace detection, home-row jumping, grouped 
 make test
 ```
 
-### Modular Test Suites (22 Tests)
+### Modular Test Suites (23 Tests)
 - **`test_window_model.js` (Snapshot & Geometry)**: Usable geometry normalization, monitor scaling factors (1.25x, 1.5x, 2.0x), menu-bar exclusion, multi-monitor bounds, and Hyprland grouped window tab models.
 - **`test_navigation.js` (Spatial Navigation)**: 2D arrow traversal across windows, home-row letter jumping, intra-group tab navigation, and row-to-row jumping (> 6 workspaces).
-- **`test_icons.js` (Icons & Resolvers)**: FreeDesktop candidate lookup, Web Apps, PWAs, DesktopEntries, and fallbacks.
+- **`test_icons.js` (Icons & Resolvers)**: FreeDesktop candidate lookup, Web Apps, PWAs, DesktopEntries, path traversal rejection, and untrusted metadata icon security sanitization.
 - **`test_overlay_lifecycle.js` (Lifecycle, Tokens & Safety)**: Circular recursion prevention on `shell.hide()`, atomic `focusWindow()` dispatching, CVE BiDi control character stripping, plain-text sinks, and pure token separation in `Dimensions.js`.
 - **`test_integration_scripts.js` (Integration & Packaging)**: Install notification flow, `scripts/uninstall.sh` safe execution ordering, and `Makefile` uninstall target safety.
 
