@@ -57,14 +57,20 @@ function createMonitorMap(monitors) {
  */
 function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
     var m = mon || {};
+    var scale = (m.scale && !isNaN(Number(m.scale)) && Number(m.scale) > 0) ? Number(m.scale) : 1.0;
+
     var reserved = m.reserved || [0, 0, 0, 0];
     var resLeft = (reserved && reserved.length > 0) ? (Number(reserved[0]) || 0) : 0;
     var resTop = (reserved && reserved.length > 1) ? (Number(reserved[1]) || 0) : 0;
     var resRight = (reserved && reserved.length > 2) ? (Number(reserved[2]) || 0) : 0;
     var resBottom = (reserved && reserved.length > 3) ? (Number(reserved[3]) || 0) : 0;
 
-    var fullW = Number(m.width) || fallbackW || 1920;
-    var fullH = Number(m.height) || fallbackH || 1200;
+    var fullW = (m.width !== undefined && m.width !== null && Number(m.width) > 0)
+        ? (Number(m.width) / scale)
+        : (fallbackW || 1920);
+    var fullH = (m.height !== undefined && m.height !== null && Number(m.height) > 0)
+        ? (Number(m.height) / scale)
+        : (fallbackH || 1200);
     var fullX = Number(m.x) || 0;
     var fullY = Number(m.y) || 0;
 
@@ -78,6 +84,7 @@ function getUsableMonitorBounds(mon, fallbackW, fallbackH) {
         y: usableY,
         width: usableW,
         height: usableH,
+        scale: scale,
         aspect: (usableH > 0) ? (usableW / usableH) : (16 / 10),
         reserved: { left: resLeft, top: resTop, right: resRight, bottom: resBottom }
     };

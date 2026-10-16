@@ -12,7 +12,7 @@ fi
 
 echo "--> Restarting Omarchy shell..."
 if command -v omarchy >/dev/null 2>&1; then
-  omarchy restart shell
+  omarchy restart shell 2>/dev/null || true
   sleep 1
 elif command -v omarchy-shell >/dev/null 2>&1; then
   omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true

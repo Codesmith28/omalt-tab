@@ -24,8 +24,6 @@ if command -v rsync >/dev/null 2>&1; then
   rsync -a --delete \
     --exclude='.git' \
     --exclude='tests' \
-    --exclude='scripts' \
-    --exclude='Makefile' \
     --exclude='*.swp' \
     --exclude='.dev' \
     --exclude='.dev*' \
@@ -33,7 +31,8 @@ if command -v rsync >/dev/null 2>&1; then
 else
   cp -r "${PROJECT_DIR}/AltTabOverlay.qml" "${PROJECT_DIR}/components" \
     "${PROJECT_DIR}/hypr" "${PROJECT_DIR}/js" "${PROJECT_DIR}/manifest.json" \
-    "${PROJECT_DIR}/LICENSE" "${PROJECT_DIR}/README.md" "${TARGET_DIR}/"
+    "${PROJECT_DIR}/LICENSE" "${PROJECT_DIR}/README.md" \
+    "${PROJECT_DIR}/Makefile" "${PROJECT_DIR}/scripts" "${TARGET_DIR}/"
   rm -f "${TARGET_DIR}/.dev" "${TARGET_DIR}/.dev"*
 fi
 

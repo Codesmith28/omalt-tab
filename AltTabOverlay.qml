@@ -97,8 +97,28 @@ Item {
     readonly property string socketPath: (Quickshell.env("XDG_RUNTIME_DIR") || "/run/user/1000") + "/omalt-tab.sock"
     readonly property var wsLetters: ["a", "s", "d", "f", "g", "h", "j", "k", "l", ";"]
 
+    // In-memory check for Hyprland bindings hook to avoid unnecessary process spawns
+    FileView {
+        id: hyprBindingsFile
+        path: (Quickshell.env("HOME") || "") + "/.config/hypr/bindings.lua"
+        blockLoading: true
+        preload: true
+        printErrors: false
+    }
+
+    readonly property bool hasBindingsHook: {
+        if (!hyprBindingsFile.loaded) return false;
+        var txt = hyprBindingsFile.text();
+        return txt.indexOf("io.github.codesmith28.omalt-tab") !== -1 ||
+               txt.indexOf("omalt-tab") !== -1 ||
+               (txt.indexOf("find") !== -1 && txt.indexOf("bindings.lua") !== -1);
+    }
+
     Component.onCompleted: {
         snapshotFetcher.running = true;
+        if (!root.hasBindingsHook) {
+            setupNotifier.running = true;
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -231,6 +251,29 @@ Item {
                 }
             }
         }
+    }
+
+    readonly property string pluginDir: decodeURIComponent(String(Qt.resolvedUrl(".")).replace(/^file:\/\//, "")).replace(/\/$/, "")
+
+    // Setup Guidance Notifier: When installed/enabled without keybindings configured,
+    // notify the user with instructions on how to complete setup via make prod or README.
+    Process {
+        id: setupNotifier
+        command: [
+            "sh", "-c",
+            "flag=\"${XDG_RUNTIME_DIR:-/run/user/$UID}/omalt-tab-setup-notified\"; " +
+            "if [ ! -f \"$flag\" ]; then " +
+            "  touch \"$flag\" 2>/dev/null || true; " +
+            "  plugin_dir=\"$1\"; " +
+            "  if command -v notify-send >/dev/null 2>&1; then " +
+            "    notify-send -u normal -a 'omalt-tab' -i preferences-desktop-keyboard " +
+            "      'omalt-tab: Setup Required' " +
+            "      \"To enable Alt+Tab keybindings, run:\\ncd \\\"$plugin_dir\\\" && make prod\\n\\n(Run make uninstall to remove. See README.md)\"; " +
+            "  fi; " +
+            "fi",
+            "_",
+            root.pluginDir
+        ]
     }
 
     function refreshSnapshot() {
