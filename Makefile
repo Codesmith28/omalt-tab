@@ -91,7 +91,6 @@ update:
 
 uninstall:
 	@scripts/uninstall.sh
-	@scripts/restart.sh
 
 restart:
 	@scripts/restart.sh

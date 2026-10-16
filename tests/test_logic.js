@@ -1202,6 +1202,140 @@ const nav = loadModule("js/Navigation.js");
   console.log("  ✓ Setup guidance notification on install verified");
 }
 
+// Test 21: Monitor scale handling (scale != 1.0) and logical coordinate normalization
+{
+  // Scenario 1: Scale 1.5 with 3840x2160 monitor (logical 2560x1440)
+  // Two tiled windows side-by-side, each 1280px wide logically
+  const scaledSnapshot1_5 = {
+    clients: [
+      {
+        address: "0x101",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [0, 30],
+        size: [1280, 1410],
+        title: "Left Half",
+        class: "terminal",
+        focusHistoryID: 0
+      },
+      {
+        address: "0x102",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [1280, 30],
+        size: [1280, 1410],
+        title: "Right Half",
+        class: "browser",
+        focusHistoryID: 1
+      }
+    ],
+    workspaces: [{ id: 1, name: "1", monitor: "DP-1", monitorID: 0 }],
+    monitors: [
+      {
+        id: 0,
+        name: "DP-1",
+        width: 3840,
+        height: 2160,
+        x: 0,
+        y: 0,
+        scale: 1.5,
+        reserved: [0, 30, 0, 0],
+        focused: true,
+        activeWorkspace: { id: 1 }
+      }
+    ]
+  };
+
+  const parsed1_5 = wm.parseSnapshot(scaledSnapshot1_5, ["a"]);
+  const ws1 = parsed1_5.workspaces[0];
+  assert.strictEqual(ws1.windows.length, 2);
+
+  const leftWin = ws1.windows[0];
+  const rightWin = ws1.windows[1];
+
+  // Left window: normX should be 0, normW should be exactly 0.5 (1280 / 2560)
+  assert(Math.abs(leftWin.normX - 0.0) < 0.001, `Left window normX should be 0, got ${leftWin.normX}`);
+  assert(Math.abs(leftWin.normW - 0.5) < 0.001, `Left window normW should be 0.5, got ${leftWin.normW}`);
+
+  // Right window: normX should be 0.5 (1280 / 2560), normW should be 0.5
+  assert(Math.abs(rightWin.normX - 0.5) < 0.001, `Right window normX should be 0.5, got ${rightWin.normX}`);
+  assert(Math.abs(rightWin.normW - 0.5) < 0.001, `Right window normW should be 0.5, got ${rightWin.normW}`);
+
+  // Combined width fills 100% of usable card viewport without shrinking or wasted space
+  assert(Math.abs((leftWin.normW + rightWin.normW) - 1.0) < 0.001, "Combined window width should equal 1.0");
+
+  // Scenario 2: Scale 2.0 with 3840x2160 monitor (logical 1920x1080)
+  // Single maximized window: size [1920, 1050], at [0, 30]
+  const scaledSnapshot2_0 = {
+    clients: [
+      {
+        address: "0x201",
+        mapped: true,
+        workspace: { id: 1 },
+        at: [0, 30],
+        size: [1920, 1050],
+        title: "Maximized",
+        class: "code",
+        focusHistoryID: 0
+      }
+    ],
+    workspaces: [{ id: 1, name: "1", monitor: "DP-1", monitorID: 0 }],
+    monitors: [
+      {
+        id: 0,
+        name: "DP-1",
+        width: 3840,
+        height: 2160,
+        x: 0,
+        y: 0,
+        scale: 2.0,
+        reserved: [0, 30, 0, 0],
+        focused: true,
+        activeWorkspace: { id: 1 }
+      }
+    ]
+  };
+
+  const parsed2_0 = wm.parseSnapshot(scaledSnapshot2_0, ["a"]);
+  const maxWin = parsed2_0.workspaces[0].windows[0];
+  assert(Math.abs(maxWin.normX - 0.0) < 0.001, "Maximized normX should be 0");
+  assert(Math.abs(maxWin.normY - 0.0) < 0.001, "Maximized normY should be 0");
+  assert(Math.abs(maxWin.normW - 1.0) < 0.001, `Maximized normW should be 1.0, got ${maxWin.normW}`);
+  assert(Math.abs(maxWin.normH - 1.0) < 0.001, `Maximized normH should be 1.0, got ${maxWin.normH}`);
+
+  // Scenario 3: Fractional Scale 1.25 with 1920x1080 monitor (logical 1536x864)
+  const bounds1_25 = wm.getUsableMonitorBounds({ width: 1920, height: 1080, scale: 1.25, reserved: [0, 0, 0, 0] });
+  assert.strictEqual(bounds1_25.width, 1536, "Logical width at 1.25 scale should be 1536");
+  assert.strictEqual(bounds1_25.height, 864, "Logical height at 1.25 scale should be 864");
+
+  console.log("  ✓ Monitor scale handling (scale != 1.0) and logical coordinate normalization verified");
+}
+
+// Test 22: scripts/uninstall.sh order and Makefile uninstall target safety
+{
+  const uninstallSh = fs.readFileSync("scripts/uninstall.sh", "utf8");
+  const makefile = fs.readFileSync("Makefile", "utf8");
+
+  // Verify scripts/uninstall.sh resolves SCRIPT_DIR and cleans bindings before removing directory
+  const cleanBindingsIdx = uninstallSh.indexOf("clean-bindings.py");
+  const removeTargetIdx = uninstallSh.indexOf("rm -rf \"${TARGET_DIR}\"");
+  assert(cleanBindingsIdx !== -1, "uninstall.sh must call clean-bindings.py");
+  assert(removeTargetIdx !== -1, "uninstall.sh must remove TARGET_DIR");
+  assert(cleanBindingsIdx < removeTargetIdx, "clean-bindings.py must be called BEFORE removing TARGET_DIR");
+
+  // Verify restart is called before removing directory
+  const restartIdx = uninstallSh.indexOf("restart.sh");
+  assert(restartIdx !== -1, "uninstall.sh must trigger restart.sh");
+  assert(restartIdx < removeTargetIdx, "restart.sh must run BEFORE removing TARGET_DIR");
+
+  // Verify Makefile uninstall target does NOT call scripts/restart.sh after uninstall.sh
+  const uninstallTargetMatch = makefile.match(/uninstall:\n([\s\S]*?)(?=\n\w+:|$)/);
+  assert(uninstallTargetMatch, "Makefile must have uninstall target");
+  assert(!uninstallTargetMatch[1].includes("@scripts/restart.sh"), "Makefile uninstall must not execute scripts/restart.sh after uninstall.sh");
+
+  console.log("  ✓ scripts/uninstall.sh execution order and Makefile uninstall target safety verified");
+}
+
 console.log("All unit tests passed successfully!");
 
 
