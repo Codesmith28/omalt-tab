@@ -9,6 +9,106 @@ var TLD_REGEX = /\.(?:com|org|net|edu|gov|io|co|ai|app|dev|xyz|me|tv|fm|so|cc|us
 var SUBDOMAIN_REGEX = /^(?:web|app|m|mobile|www|mail|chat|music|play|desktop|client|portal|login|beta)\./i;
 
 /**
+ * Checks if a path or URI represents a generic system fallback executable icon.
+ */
+function isFallbackIcon(path) {
+    if (!path || typeof path !== "string") return false;
+    return path.indexOf("application-x-executable") !== -1 || path.indexOf("system-run") !== -1;
+}
+
+/**
+ * Validates that an icon candidate is a safe FreeDesktop identifier.
+ * Rejects path traversal, directory separators, URI schemes, file extensions, and invalid characters.
+ */
+function isValidIconCandidate(name) {
+    if (!name || typeof name !== "string") return false;
+    var s = name.trim();
+    if (!s || s.length > 128) return false;
+
+    // Disallow path separators, URI schemes, control characters, or directory traversal
+    if (s.indexOf("/") !== -1 || s.indexOf("\\") !== -1 || s.indexOf(":") !== -1 || s.indexOf("..") !== -1 || s.indexOf("\0") !== -1) {
+        return false;
+    }
+
+    // Must not start or end with a dot or dash
+    if (s.charAt(0) === "." || s.charAt(0) === "-" || s.charAt(s.length - 1) === "." || s.charAt(s.length - 1) === "-") {
+        return false;
+    }
+
+    // Prohibit image file extensions (theme candidates are icon names, not disk filenames)
+    if (/\.(?:png|svg|svgz|xpm|ico|jpe?g|bmp|webp|gif)$/i.test(s)) {
+        return false;
+    }
+
+    // Strict FreeDesktop identifier: alphanumeric, underscores, hyphens, and dots
+    return /^[a-zA-Z0-9_\-\.]+$/.test(s);
+}
+
+/**
+ * Validates that an icon source path or URI is safe to load in the shell.
+ * Restricts file paths to trusted system/user icon repositories, preventing arbitrary file reads
+ * or memory exhaustion decompression attacks via client-supplied files.
+ */
+function isSafeIconSource(src, allowFallback) {
+    if (!src || typeof src !== "string") return false;
+    var s = src.trim();
+    if (!s) return false;
+
+    if (!allowFallback && isFallbackIcon(s)) return false;
+
+    // QML Image providers (e.g. image://icon/...) and Qt resources (qrc:/...) are safe
+    if (s.indexOf("image://") === 0 || s.indexOf("qrc:/") === 0) {
+        return true;
+    }
+
+    // Convert file:// to path for validation
+    var path = s;
+    if (path.indexOf("file://") === 0) {
+        path = path.slice(7);
+    }
+
+    // Must be an absolute path
+    if (path.charAt(0) !== "/") {
+        return false;
+    }
+
+    // Disallow directory traversal or null bytes
+    if (path.indexOf("..") !== -1 || path.indexOf("\0") !== -1) {
+        return false;
+    }
+
+    // Block dangerous temporary and system pseudo-directories
+    if (path.indexOf("/tmp/") === 0 || path === "/tmp" ||
+        path.indexOf("/var/tmp/") === 0 || path === "/var/tmp" ||
+        path.indexOf("/dev/") === 0 ||
+        path.indexOf("/proc/") === 0 ||
+        path.indexOf("/sys/") === 0) {
+        return false;
+    }
+
+    // Must be in trusted icon or application directories
+    var isTrusted = (
+        path.indexOf("/usr/share/icons/") === 0 ||
+        path.indexOf("/usr/share/pixmaps/") === 0 ||
+        path.indexOf("/usr/local/share/icons/") === 0 ||
+        path.indexOf("/usr/local/share/pixmaps/") === 0 ||
+        path.indexOf("/var/lib/flatpak/exports/share/icons/") === 0 ||
+        path.indexOf("/var/lib/snapd/desktop/icons/") === 0 ||
+        path.indexOf("/nix/store/") === 0 ||
+        path.indexOf("/run/current-system/sw/share/icons/") === 0 ||
+        path.indexOf("/opt/") === 0 ||
+        path.indexOf("/usr/share/app-info/icons/") === 0 ||
+        path.indexOf("/var/lib/app-info/icons/") === 0 ||
+        path.indexOf("/.local/share/icons/") !== -1 ||
+        path.indexOf("/.icons/") !== -1 ||
+        path.indexOf("/.local/share/pixmaps/") !== -1 ||
+        path.indexOf("/.local/share/flatpak/exports/share/icons/") !== -1
+    );
+
+    return isTrusted;
+}
+
+/**
  * Dynamically decomposes Wayland app_id / X11 WM_CLASS, window title, and initial title
  * into standard FreeDesktop icon candidates and web app domain identifiers.
  * Completely dynamic: handles web apps, PWAs, reverse-DNS, container prefixes, and case normalization.
@@ -18,7 +118,7 @@ function getNativeIconCandidates(clientClass, initialClass, title, initialTitle)
     var seen = {};
 
     function add(name) {
-        if (!name || typeof name !== "string") return;
+        if (!isValidIconCandidate(name)) return;
         var s = name.trim();
         if (!s || seen[s]) return;
         seen[s] = true;
@@ -210,39 +310,46 @@ function resolveIcon(quickshell, desktopEntries, clientClass, initialClass, shel
         return _iconCache[key];
     }
 
-    function isFallbackIcon(path) {
-        if (!path || typeof path !== "string") return false;
-        return path.indexOf("application-x-executable") !== -1 || path.indexOf("system-run") !== -1;
-    }
-
     function queryPath(iconName) {
-        if (!iconName) return "";
+        if (!iconName || typeof iconName !== "string") return "";
+        var name = iconName.trim();
+        if (!name) return "";
+
+        // If iconName contains path characters (from desktop entry Icon= field), validate safe path
+        var isPath = name.indexOf("/") !== -1 || name.indexOf("\\") !== -1 || name.indexOf("://") !== -1;
+        if (isPath) {
+            if (!isSafeIconSource(name, false)) return "";
+        } else {
+            // Icon name must be a valid FreeDesktop theme icon candidate
+            if (!isValidIconCandidate(name)) return "";
+        }
 
         // 1. AppLibrary iconIndex directly (instant lookup for disk paths in ~/.local/share/icons etc.)
-        if (shellAppLib && shellAppLib.iconIndex && shellAppLib.iconIndex[iconName]) {
-            var direct = shellAppLib.iconIndex[iconName];
-            if (direct) {
-                return (direct.indexOf("://") !== -1) ? direct : ("file://" + direct);
+        if (shellAppLib && shellAppLib.iconIndex && shellAppLib.iconIndex[name]) {
+            var direct = shellAppLib.iconIndex[name];
+            if (direct && typeof direct === "string") {
+                var directUri = (direct.indexOf("://") !== -1) ? direct : ("file://" + direct);
+                if (isSafeIconSource(directUri, false)) return directUri;
             }
         }
 
         // 2. Quickshell native theme lookup
         if (typeof quickshell.iconPath === "function") {
-            var r = quickshell.iconPath(iconName, true);
-            if (r && r.length > 0 && !isFallbackIcon(r)) return r;
+            var r = quickshell.iconPath(name, true);
+            if (r && r.length > 0 && isSafeIconSource(r, false)) return r;
         }
 
         // 3. AppLibrary iconSource (with guard against returning fallback application-x-executable on miss)
         if (shellAppLib && typeof shellAppLib.iconSource === "function") {
-            var r = shellAppLib.iconSource(iconName);
-            if (r && r.length > 0 && !isFallbackIcon(r)) return r;
+            var r = shellAppLib.iconSource(name);
+            if (r && r.length > 0 && isSafeIconSource(r, false)) return r;
         }
 
         return "";
     }
 
     function save(p) {
-        if (p) {
+        if (p && isSafeIconSource(p, true)) {
             _iconCache[key] = p;
             return p;
         }
@@ -256,15 +363,17 @@ function resolveIcon(quickshell, desktopEntries, clientClass, initialClass, shel
     var bPrefixMatch = (cClass || "").match(BROWSER_PREFIX_REGEX);
     if (bPrefixMatch) {
         var stripped = (cClass || "").slice(bPrefixMatch[0].length).replace(PROFILE_SUFFIX_REGEX, "");
-        if (stripped.indexOf(".") !== -1) {
+        if (stripped.indexOf(".") !== -1 && isValidIconCandidate(stripped)) {
             webAppDomains.push(stripped.toLowerCase());
             var noSub = stripped.replace(SUBDOMAIN_REGEX, "");
-            if (noSub !== stripped) webAppDomains.push(noSub.toLowerCase());
+            if (noSub !== stripped && isValidIconCandidate(noSub)) webAppDomains.push(noSub.toLowerCase());
         }
     }
     if (wTitle && wTitle.indexOf(".") !== -1 && !/\s/.test(wTitle.trim())) {
         var cleanTitleUrl = wTitle.trim().replace(/\/.*$/, "").replace(/_.*$/, "");
-        if (cleanTitleUrl.indexOf(".") !== -1) webAppDomains.push(cleanTitleUrl.toLowerCase());
+        if (cleanTitleUrl.indexOf(".") !== -1 && isValidIconCandidate(cleanTitleUrl)) {
+            webAppDomains.push(cleanTitleUrl.toLowerCase());
+        }
     }
 
     // 1. DesktopEntries direct lookup by candidate ID (e.g. "Whatsapp", "brave-browser", "code")
@@ -343,7 +452,9 @@ function resolveIcon(quickshell, desktopEntries, clientClass, initialClass, shel
 
     // 5. Probing native icon theme directly with candidates
     for (var i = 0; i < candidates.length; i++) {
-        var p = queryPath(candidates[i]);
+        var cand = candidates[i];
+        if (!isValidIconCandidate(cand)) continue;
+        var p = queryPath(cand);
         if (p) return save(p);
     }
 
@@ -355,7 +466,7 @@ function resolveIcon(quickshell, desktopEntries, clientClass, initialClass, shel
     if (!fallback && shellAppLib && typeof shellAppLib.iconSource === "function") {
         fallback = shellAppLib.iconSource("application-x-executable");
     }
-    if (fallback) return save(fallback);
+    if (fallback && isSafeIconSource(fallback, true)) return save(fallback);
 
     return "";
 }
