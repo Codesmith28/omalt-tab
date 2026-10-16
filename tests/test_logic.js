@@ -1187,6 +1187,21 @@ const nav = loadModule("js/Navigation.js");
   console.log("  ✓ Dismissal recursion guard and commit dispatch order verified");
 }
 
+// Test 20: Setup guidance notification on install
+{
+  const overlayQml = fs.readFileSync("AltTabOverlay.qml", "utf8");
+
+  // 1. Verify AltTabOverlay.qml declares setupNotifier and gates it via in-memory FileView
+  assert(overlayQml.includes("id: setupNotifier"), "AltTabOverlay must define setupNotifier process");
+  assert(overlayQml.includes("hyprBindingsFile"), "AltTabOverlay must check bindings via FileView");
+  assert(overlayQml.includes("hasBindingsHook"), "AltTabOverlay must gate setupNotifier with hasBindingsHook");
+  assert(overlayQml.includes("setupNotifier.running = true;"), "AltTabOverlay Component.onCompleted must trigger setupNotifier when missing");
+  assert(overlayQml.includes("notify-send"), "AltTabOverlay must notify the user with setup instructions");
+  assert(!overlayQml.includes("integrationRunner"), "AltTabOverlay should not run silent auto-injection to comply with security audits");
+
+  console.log("  ✓ Setup guidance notification on install verified");
+}
+
 console.log("All unit tests passed successfully!");
 
 
